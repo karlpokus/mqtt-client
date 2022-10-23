@@ -10,7 +10,11 @@ import (
 	"time"
 )
 
-func read(conn net.Conn, errc chan error) {
+var packetType = map[uint8]string{
+	0xd0: "PINGRESP",
+}
+
+func parse(conn net.Conn, errc chan error) {
 	for {
 		var b [128]byte
 		n, err := conn.Read(b[:]) // arr to slice
@@ -18,9 +22,16 @@ func read(conn net.Conn, errc chan error) {
 			errc <- err
 			return
 		}
-		log.Printf("%d bytes read", n)
-		for i := 0; i < n; i++ {
-			log.Printf("%x", b[i]) // dump hex for now
+		if n == 0 { // needed?
+			continue
+		}
+		v, ok := packetType[b[0]]
+		if ok {
+			log.Printf("%s recieved", v)
+		} else {
+			for i := 0; i < n; i++ {
+				log.Printf("%x", b[i]) // dump hex
+			}
 		}
 	}
 }
@@ -31,7 +42,6 @@ func write(conn net.Conn, errc chan error, b []byte) {
 		errc <- err
 		return
 	}
-	log.Printf("%d bytes written", n)
 }
 
 func main() {
@@ -49,7 +59,7 @@ func main() {
 	}
 	log.Println("CONNACK recieved")
 	errc := make(chan error)
-	go read(conn, errc) // just dump responding bytes for now
+	go parse(conn, errc)
 	go func() {
 		for {
 			time.Sleep(30 * time.Second) // half the set keep-alive
