@@ -1,6 +1,6 @@
 package main
 
-func connect(clientId string) []byte {
+func connectPacket(clientId string) []byte {
 	fixedHeaderLen := 2
 	varHeaderLen := 10
 	payloadLen := 2 + len(clientId)
@@ -33,14 +33,14 @@ func connect(clientId string) []byte {
 	return b
 }
 
-func disconnect() []byte {
+func disconnectPacket() []byte {
 	b := make([]byte, 2)
 	b[0] = 0xe0
 	b[1] = 0
 	return b
 }
 
-func pingreq() []byte {
+func pingreqPacket() []byte {
 	b := make([]byte, 2)
 	b[0] = 0xc0
 	b[1] = 0
