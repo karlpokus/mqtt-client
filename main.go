@@ -47,7 +47,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("tcp connection ok")
-	log.Println("sending CONNECT")
+	log.Println("CONNECT send")
 	err = connect(conn)
 	if err != nil {
 		log.Fatal(err)
@@ -58,7 +58,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(30 * time.Second) // half the set keep-alive
-			log.Println("sending PINGREQ")
+			log.Println("PINGREQ send")
 			write(conn, errc, pingreqPacket())
 			// TODO: verify pingresp
 		}
@@ -67,7 +67,8 @@ func main() {
 	case err := <-errc:
 		log.Printf("%s", err)
 	case <-interrupt():
-		write(conn, errc, disconnectPacket()) // will block on errc
+    log.Println("DISCONNECT send")
+    write(conn, errc, disconnectPacket()) // will block on errc
 	}
 	log.Println("client exiting")
 }
