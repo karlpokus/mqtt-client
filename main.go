@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -9,10 +8,6 @@ import (
 	"os/signal"
 	"time"
 )
-
-var packetType = map[uint8]string{
-	0xd0: "PINGRESP",
-}
 
 func parse(conn net.Conn, errc chan error) {
 	for {
@@ -37,7 +32,7 @@ func parse(conn net.Conn, errc chan error) {
 }
 
 func write(conn net.Conn, errc chan error, b []byte) {
-	n, err := conn.Write(b)
+	_, err := conn.Write(b)
 	if err != nil {
 		errc <- err
 		return
@@ -88,24 +83,7 @@ func connect(rw io.ReadWriter) error {
 	if err != nil {
 		return err
 	}
-	if !isConnAck(b) {
-		return fmt.Errorf("Error: server response is not a connack: %x", b)
-	}
-	return nil
-}
-
-func isConnAck(b [4]byte) bool {
-	// 0 connack
-	// 1 remaining len
-	// 2 Connect Acknowledge Flags
-	// 3 Connect Return code: Connection Accepted
-	a := []byte{0x20, 2, 0, 0}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return connackVerify(b)
 }
 
 func interrupt() <-chan os.Signal {

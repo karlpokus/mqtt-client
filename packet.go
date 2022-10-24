@@ -1,5 +1,32 @@
 package main
 
+import "fmt"
+
+var packetType = map[uint8]string{
+	0xd0: "PINGRESP",
+}
+
+var connackReturnCodeDesc = []string{
+	"Connection accepted",
+	"The Server does not support the level of the MQTT protocol requested by the Client",
+	"The Client identifier is correct UTF-8 but not allowed by the Server",
+	"The Network Connection has been made but the MQTT service is unavailable",
+	"The data in the user name or password is malformed",
+	"The Client is not authorized to connect",
+}
+
+// connackVerify verifies the control code and return code of CONNACK
+func connackVerify(b [4]byte) error {
+	if b[0] != 0x20 {
+		return fmt.Errorf("Error: server response is not a connack: %x", b)
+	}
+	// TODO: verify session present flag
+	if b[3] != 0 {
+		return fmt.Errorf("Error: connack return code: %s", connackReturnCodeDesc[b[3]])
+	}
+	return nil
+}
+
 func connectPacket(clientId string) []byte {
 	fixedHeaderLen := 2
 	varHeaderLen := 10
