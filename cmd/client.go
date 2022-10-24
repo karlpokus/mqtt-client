@@ -1,12 +1,13 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"time"
+
+  "github.com/karlpokus/mqtt-client/lib/packet"
 )
 
 func parse(conn net.Conn, errc chan error) {
@@ -20,7 +21,7 @@ func parse(conn net.Conn, errc chan error) {
 		if n == 0 { // needed?
 			continue
 		}
-		v, ok := packetType[b[0]]
+		v, ok := packet.ControlPacket[b[0]]
 		if ok {
 			log.Printf("%s recieved", v)
 		} else {
@@ -39,8 +40,14 @@ func write(conn net.Conn, errc chan error, b []byte) {
 	}
 }
 
+func interrupt() <-chan os.Signal {
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, os.Interrupt)
+	return sigc
+}
+
 func main() {
-	//log.SetFlags(0)
+  //log.SetFlags(0)
 	log.Println("client started")
 	conn, err := net.Dial("tcp", "localhost:1883")
 	if err != nil {
@@ -48,7 +55,7 @@ func main() {
 	}
 	log.Println("tcp connection ok")
 	log.Println("CONNECT send")
-	err = connect(conn)
+	err = packet.Connect(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +66,7 @@ func main() {
 		for {
 			time.Sleep(30 * time.Second) // half the set keep-alive
 			log.Println("PINGREQ send")
-			write(conn, errc, pingreqPacket())
+			write(conn, errc, packet.PingReq())
 			// TODO: verify pingresp
 		}
 	}()
@@ -68,27 +75,7 @@ func main() {
 		log.Printf("%s", err)
 	case <-interrupt():
     log.Println("DISCONNECT send")
-    write(conn, errc, disconnectPacket()) // will block on errc
+    write(conn, errc, packet.Disconnect()) // will block on errc
 	}
 	log.Println("client exiting")
-}
-
-// connect sends a connectPacket and expects a connack in return
-func connect(rw io.ReadWriter) error {
-	_, err := rw.Write(connectPacket("bixa")) // bixa the cat
-	if err != nil {
-		return err
-	}
-	var b [4]byte
-	_, err = rw.Read(b[:])
-	if err != nil {
-		return err
-	}
-	return connackVerify(b)
-}
-
-func interrupt() <-chan os.Signal {
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt)
-	return sigc
 }

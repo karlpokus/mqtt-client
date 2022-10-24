@@ -6,7 +6,8 @@ An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mq
 
 # usage
 ````bash
-$ go run .
+$ make test
+$ make run
 ````
 
 # todos
@@ -16,7 +17,7 @@ $ go run .
 - [x] pingreq
 - [x] pingresp
 - [x] disconnect
-- [ ] tests
+- [x] tests
 - [ ] pub
 - [x] parse connack return codes
 - [ ] verify pingresp after sending pingreq

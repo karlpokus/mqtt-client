@@ -1,8 +1,11 @@
-package main
+package packet
 
-import "fmt"
+import (
+	"io"
+	"fmt"
+)
 
-var packetType = map[uint8]string{
+var ControlPacket = map[uint8]string{
 	0xd0: "PINGRESP",
 }
 
@@ -13,6 +16,20 @@ var connackReturnCodeDesc = []string{
 	"The Network Connection has been made but the MQTT service is unavailable",
 	"The data in the user name or password is malformed",
 	"The Client is not authorized to connect",
+}
+
+// Connect sends a connectPacket and expects a connack in return
+func Connect(rw io.ReadWriter) error {
+	_, err := rw.Write(connect("bixa")) // bixa the cat
+	if err != nil {
+		return err
+	}
+	var b [4]byte
+	_, err = rw.Read(b[:])
+	if err != nil {
+		return err
+	}
+	return connackVerify(b)
 }
 
 // connackVerify verifies the control code and return code of CONNACK
@@ -27,7 +44,7 @@ func connackVerify(b [4]byte) error {
 	return nil
 }
 
-func connectPacket(clientId string) []byte {
+func connect(clientId string) []byte {
 	fixedHeaderLen := 2
 	varHeaderLen := 10
 	payloadLen := 2 + len(clientId)
@@ -60,14 +77,14 @@ func connectPacket(clientId string) []byte {
 	return b
 }
 
-func disconnectPacket() []byte {
+func Disconnect() []byte {
 	b := make([]byte, 2)
 	b[0] = 0xe0
 	b[1] = 0
 	return b
 }
 
-func pingreqPacket() []byte {
+func PingReq() []byte {
 	b := make([]byte, 2)
 	b[0] = 0xc0
 	b[1] = 0
