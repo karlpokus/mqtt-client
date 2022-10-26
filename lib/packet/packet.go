@@ -78,15 +78,9 @@ func connect(clientId string) []byte {
 }
 
 func Disconnect() []byte {
-	b := make([]byte, 2)
-	b[0] = 0xe0
-	b[1] = 0
-	return b
+	return []byte{0xe0, 0}
 }
 
 func PingReq() []byte {
-	b := make([]byte, 2)
-	b[0] = 0xc0
-	b[1] = 0
-	return b
+	return []byte{0xc0, 0}
 }
