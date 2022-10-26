@@ -7,27 +7,22 @@ import (
 	"os/signal"
 	"time"
 
-  "github.com/karlpokus/mqtt-client/lib/packet"
+	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
 func parse(conn net.Conn, errc chan error) {
+	var b [1024]byte
 	for {
-		var b [128]byte
-		n, err := conn.Read(b[:]) // arr to slice
+		n, err := conn.Read(b[:]) // blocking read
 		if err != nil {
 			errc <- err
 			return
-		}
-		if n == 0 { // needed?
-			continue
 		}
 		v, ok := packet.ControlPacket[b[0]]
 		if ok {
 			log.Printf("%s recieved", v)
 		} else {
-			for i := 0; i < n; i++ {
-				log.Printf("%x", b[i]) // dump hex
-			}
+			log.Printf("%x", b[:n]) // dump hex
 		}
 	}
 }
@@ -47,7 +42,7 @@ func interrupt() <-chan os.Signal {
 }
 
 func main() {
-  //log.SetFlags(0)
+	//log.SetFlags(0)
 	log.Println("client started")
 	conn, err := net.Dial("tcp", "localhost:1883")
 	if err != nil {
@@ -74,8 +69,9 @@ func main() {
 	case err := <-errc:
 		log.Printf("%s", err)
 	case <-interrupt():
-    log.Println("DISCONNECT send")
-    write(conn, errc, packet.Disconnect()) // will block on errc
+		log.Println("DISCONNECT send")
+		write(conn, errc, packet.Disconnect()) // will block on errc
+		// TODO: close chan? Or check if server closed it, for fun
 	}
 	log.Println("client exiting")
 }
