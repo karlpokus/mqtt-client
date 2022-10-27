@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -10,12 +11,12 @@ import (
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
-func parse(conn net.Conn, errc chan error) {
+func parse(conn net.Conn, fatal chan error) {
 	var b [1024]byte
 	for {
 		n, err := conn.Read(b[:]) // blocking read
 		if err != nil {
-			errc <- err
+			fatal <- err
 			return
 		}
 		v, ok := packet.ControlPacket[b[0]]
@@ -27,10 +28,10 @@ func parse(conn net.Conn, errc chan error) {
 	}
 }
 
-func write(conn net.Conn, errc chan error, b []byte) {
+func write(conn net.Conn, fatal chan error, b []byte) {
 	_, err := conn.Write(b)
 	if err != nil {
-		errc <- err
+		fatal <- err
 		return
 	}
 }
@@ -48,30 +49,43 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("tcp connection ok")
-	log.Println("CONNECT send")
-	err = packet.Connect(conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("CONNACK recieved")
-	errc := make(chan error)
-	go parse(conn, errc)
+	log.Println("connection ok")
+	rwc := make(chan func(io.ReadWriter) error)
+	fatal := make(chan error)
+	exit := make(chan bool)
+	go func() {
+		for fn := range rwc {
+			// note: some error handling options here that also affects flow control:
+			// pass fatal to fn
+			// let the wrapper func return the error
+			// let fn return a release chan
+			err := fn(conn)
+			if err != nil {
+				fatal <- err
+				return // fatal
+			}
+		}
+	}()
+	go func() {
+		select {
+		case err := <-fatal:
+			log.Printf("%s", err)
+		case <-interrupt():
+			packet.Disconnect(rwc)
+			// note: consider closing the connection.
+			// or perhaps check if server closed it
+		}
+		exit <-true
+	}()
+	packet.Connect(rwc)
+	go parse(conn, fatal)
 	go func() {
 		for {
 			time.Sleep(30 * time.Second) // half the set keep-alive
-			log.Println("PINGREQ send")
-			write(conn, errc, packet.PingReq())
+			packet.Ping(rwc)
 			// TODO: verify pingresp
 		}
 	}()
-	select {
-	case err := <-errc:
-		log.Printf("%s", err)
-	case <-interrupt():
-		log.Println("DISCONNECT send")
-		write(conn, errc, packet.Disconnect()) // will block on errc
-		// TODO: close chan? Or check if server closed it, for fun
-	}
+	<-exit
 	log.Println("client exiting")
 }

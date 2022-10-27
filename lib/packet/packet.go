@@ -1,8 +1,8 @@
 package packet
 
 import (
-	"io"
 	"fmt"
+	"io"
 )
 
 var ControlPacket = map[uint8]string{
@@ -18,18 +18,20 @@ var connackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
-// Connect sends a connectPacket and expects a connack in return
-func Connect(rw io.ReadWriter) error {
-	_, err := rw.Write(connect("bixa")) // bixa the cat
-	if err != nil {
-		return err
+// Connect sends CONNECT and expects CONNACK in return
+func Connect(rwc chan func(io.ReadWriter) error) {
+	rwc <- func(rw io.ReadWriter) error {
+		_, err := rw.Write(connect("bixa")) // bixa the cat
+		if err != nil {
+			return err
+		}
+		var b [4]byte
+		_, err = rw.Read(b[:])
+		if err != nil {
+			return err
+		}
+		return connackVerify(b)
 	}
-	var b [4]byte
-	_, err = rw.Read(b[:])
-	if err != nil {
-		return err
-	}
-	return connackVerify(b)
 }
 
 // connackVerify verifies the control code and return code of CONNACK
@@ -77,10 +79,16 @@ func connect(clientId string) []byte {
 	return b
 }
 
-func Disconnect() []byte {
-	return []byte{0xe0, 0}
+func Disconnect(rwc chan func(io.ReadWriter) error) {
+	rwc <- func(rw io.ReadWriter) error {
+		_, err := rw.Write([]byte{0xe0, 0})
+		return err
+	}
 }
 
-func PingReq() []byte {
-	return []byte{0xc0, 0}
+func Ping(rwc chan func(io.ReadWriter) error) {
+	rwc <- func(rw io.ReadWriter) error {
+		_, err := rw.Write([]byte{0xc0, 0})
+		return err
+	}
 }
