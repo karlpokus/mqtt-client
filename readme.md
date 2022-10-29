@@ -3,6 +3,8 @@ An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mq
 
 # notes
 - Use `printf "%d\n" <hex>` and `printf "%x\n" <int>` to convert between integer and hex
+- Use `<-func()` to indicate waiting
+- `len(chan)` only shows unread items, not pending writers
 
 # usage
 ````bash
@@ -24,3 +26,6 @@ $ make run
 - [ ] handle conn errors https://github.com/karlpokus/broker/blob/master/pkg/broker/broker.go
 - [x] try bytes.Buffer and buf.WriteTo(conn)
 - [ ] close connection on disconnect
+- [ ] rw wrapper that log op codes
+- [x] time share rw
+- [ ] try buffered rwc

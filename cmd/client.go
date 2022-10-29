@@ -1,8 +1,9 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -11,13 +12,35 @@ import (
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
-func parse(conn net.Conn, fatal chan error) {
-	var b [1024]byte
-	for {
-		n, err := conn.Read(b[:]) // blocking read
+// parse reads from rw until timeout
+func parse(rwc chan func(io.ReadWriter) error) chan bool {
+	setReadDeadline := func(rw io.ReadWriter) error {
+		if conn, ok := rw.(net.Conn); ok {
+			err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	release := make(chan bool)
+	rwc <- func(rw io.ReadWriter) error {
+		defer func() {
+			release <- true
+		}()
+		log.Println("parse start") // debug
+		setReadDeadline(rw)
+		var b [64]byte
+		n, err := rw.Read(b[:]) // blocking read
 		if err != nil {
-			fatal <- err
-			return
+			if terr, ok := err.(net.Error); ok && terr.Timeout() {
+				log.Println("parse read timeout") // debug
+				return nil
+			}
+			if err == io.EOF {
+				return fmt.Errorf("connection closed by server")
+			}
+			return err
 		}
 		v, ok := packet.ControlPacket[b[0]]
 		if ok {
@@ -25,15 +48,9 @@ func parse(conn net.Conn, fatal chan error) {
 		} else {
 			log.Printf("%x", b[:n]) // dump hex
 		}
+		return nil
 	}
-}
-
-func write(conn net.Conn, fatal chan error, b []byte) {
-	_, err := conn.Write(b)
-	if err != nil {
-		fatal <- err
-		return
-	}
+	return release
 }
 
 func interrupt() <-chan os.Signal {
@@ -71,19 +88,20 @@ func main() {
 		case err := <-fatal:
 			log.Printf("%s", err)
 		case <-interrupt():
-			packet.Disconnect(rwc)
-			// note: consider closing the connection.
-			// or perhaps check if server closed it
+			<-packet.Disconnect(rwc)
 		}
-		exit <-true
+		exit <- true
 	}()
 	packet.Connect(rwc)
-	go parse(conn, fatal)
 	go func() {
 		for {
-			time.Sleep(30 * time.Second) // half the set keep-alive
 			packet.Ping(rwc)
-			// TODO: verify pingresp
+			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
+		}
+	}()
+	go func() {
+		for {
+			<-parse(rwc) // temporary dump func
 		}
 	}()
 	<-exit

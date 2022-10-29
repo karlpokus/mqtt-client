@@ -3,6 +3,9 @@ package packet
 import (
 	"fmt"
 	"io"
+	"log"
+	"net"
+	"time"
 )
 
 var ControlPacket = map[uint8]string{
@@ -37,7 +40,7 @@ func Connect(rwc chan func(io.ReadWriter) error) {
 // connackVerify verifies the control code and return code of CONNACK
 func connackVerify(b [4]byte) error {
 	if b[0] != 0x20 {
-		return fmt.Errorf("Error: server response is not a connack: %x", b)
+		return fmt.Errorf("Error: server response is not CONNACK: %x", b)
 	}
 	// TODO: verify session present flag
 	if b[3] != 0 {
@@ -79,16 +82,52 @@ func connect(clientId string) []byte {
 	return b
 }
 
-func Disconnect(rwc chan func(io.ReadWriter) error) {
+func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
+	release := make(chan bool)
 	rwc <- func(rw io.ReadWriter) error {
+		defer func() {
+			log.Println("Disconnect end") // debug
+			release <- true
+		}()
+		log.Println("Disconnect start") // debug
 		_, err := rw.Write([]byte{0xe0, 0})
 		return err
 	}
+	return release
 }
 
+// Ping sends PINGREQ and expects PINGRESP in return
 func Ping(rwc chan func(io.ReadWriter) error) {
 	rwc <- func(rw io.ReadWriter) error {
-		_, err := rw.Write([]byte{0xc0, 0})
-		return err
+		defer log.Println("Ping end") // debug
+		log.Println("Ping start")     // debug
+		ping := []byte{0xc0, 0}
+		_, err := rw.Write(ping)
+		if err != nil {
+			return err
+		}
+		if conn, ok := rw.(net.Conn); ok {
+			err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+			if err != nil {
+				return err
+			}
+		}
+		var b [2]byte
+		_, err = rw.Read(b[:])
+		if err != nil {
+			if terr, ok := err.(net.Error); ok && terr.Timeout() {
+				// TODO: yield and retry
+				return fmt.Errorf("Error: read timeout waiting for PINGRESP")
+			}
+			if err == io.EOF {
+				return fmt.Errorf("connection closed by server")
+			}
+			return err
+		}
+		v, ok := ControlPacket[b[0]]
+		if ok && v == "PINGRESP" {
+			return nil
+		}
+		return fmt.Errorf("Error: server response in not PINGRESP: %x", b)
 	}
 }
