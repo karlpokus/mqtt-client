@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
-	"time"
+
+	"github.com/karlpokus/mqtt-client/lib/stream"
 )
 
 var ControlPacket = map[uint8]string{
@@ -106,20 +106,18 @@ func Ping(rwc chan func(io.ReadWriter) error) {
 		if err != nil {
 			return err
 		}
-		if conn, ok := rw.(net.Conn); ok {
-			err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-			if err != nil {
-				return err
-			}
+		err = stream.SetReadDeadline(rw, 5)
+		if err != nil {
+			return err
 		}
 		var b [2]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
-			if terr, ok := err.(net.Error); ok && terr.Timeout() {
+			if stream.Timeout(err) {
 				// TODO: yield and retry
 				return fmt.Errorf("Error: read timeout waiting for PINGRESP")
 			}
-			if err == io.EOF {
+			if stream.Closed(err) {
 				return fmt.Errorf("connection closed by server")
 			}
 			return err
