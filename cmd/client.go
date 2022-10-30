@@ -57,7 +57,6 @@ func main() {
 	//log.SetFlags(0)
 	log.Println("client started")
 	fatal := make(chan error)
-	exit := make(chan bool)
 	rwc := make(chan func(io.ReadWriter) error)
 	go func() {
 		select {
@@ -66,23 +65,10 @@ func main() {
 		case <-interrupt():
 			<-packet.Disconnect(rwc)
 		}
-		exit <-true
+		log.Println("client exiting")
+		os.Exit(1)
 	}()
-	// TODO: move this into rwc loop scope
-	stm, err := stream.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("stream ok")
-	go func() {
-		for fn := range rwc {
-			err := fn(stm)
-			if err != nil {
-				fatal <- err
-				return
-			}
-		}
-	}()
+	go stream.Listen(rwc, fatal)
 	packet.Connect(rwc)
 	go func() {
 		for {
@@ -90,11 +76,7 @@ func main() {
 			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
 		}
 	}()
-	go func() {
-		for {
-			<-parse(rwc) // temporary dump func
-		}
-	}()
-	<-exit
-	log.Println("client exiting")
+	for {
+		<-parse(rwc) // temporary dump func
+	}
 }
