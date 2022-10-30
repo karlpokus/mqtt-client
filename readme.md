@@ -26,8 +26,8 @@ $ make run
 - [x] tests
 - [ ] pub
 - [x] parse connack return codes
-- [ ] verify pingresp after sending pingreq
-- [ ] handle conn errors https://github.com/karlpokus/broker/blob/master/pkg/broker/broker.go
+- [x] verify pingresp after sending pingreq
+- [x] handle conn errors https://github.com/karlpokus/broker/blob/master/pkg/broker/broker.go
 - [x] try bytes.Buffer and buf.WriteTo(conn)
 - [ ] close connection on disconnect
 - [x] rw wrapper that log op codes
