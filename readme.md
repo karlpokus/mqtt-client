@@ -35,3 +35,4 @@ $ make run
 - [ ] try buffered rwc
 - [ ] stream.Fake() ?
 - [x] rw error handling options: pass fatal or return err
+- [x] move opFuncs from packet to stream

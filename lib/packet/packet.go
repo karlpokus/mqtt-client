@@ -1,17 +1,14 @@
 package packet
 
-import (
-	"fmt"
-	"io"
-
-	"github.com/karlpokus/mqtt-client/lib/stream"
-)
-
 var ControlPacket = map[uint8]string{
+	0x10: "CONNECT",
+	0x20: "CONNACK",
+	0xc0: "PINGREQ",
 	0xd0: "PINGRESP",
+	0xe0: "DISCONNECT",
 }
 
-var connackReturnCodeDesc = []string{
+var ConnackReturnCodeDesc = []string{
 	"Connection accepted",
 	"The Server does not support the level of the MQTT protocol requested by the Client",
 	"The Client identifier is correct UTF-8 but not allowed by the Server",
@@ -20,35 +17,8 @@ var connackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
-// Connect sends CONNECT and expects CONNACK in return
-func Connect(rwc chan func(io.ReadWriter) error) {
-	rwc <- func(rw io.ReadWriter) error {
-		_, err := rw.Write(connect("bixa")) // bixa the cat
-		if err != nil {
-			return err
-		}
-		var b [4]byte
-		_, err = rw.Read(b[:])
-		if err != nil {
-			return err
-		}
-		return connackVerify(b)
-	}
-}
-
-// connackVerify verifies the control code and return code of CONNACK
-func connackVerify(b [4]byte) error {
-	if b[0] != 0x20 {
-		return fmt.Errorf("Error: server response is not CONNACK: %x", b)
-	}
-	// TODO: verify session present flag
-	if b[3] != 0 {
-		return fmt.Errorf("Error: connack return code: %s", connackReturnCodeDesc[b[3]])
-	}
-	return nil
-}
-
-func connect(clientId string) []byte {
+// connect returns a CONNECT packet
+func Connect(clientId string) []byte {
 	fixedHeaderLen := 2
 	varHeaderLen := 10
 	payloadLen := 2 + len(clientId)
@@ -81,42 +51,22 @@ func connect(clientId string) []byte {
 	return b
 }
 
-func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
-	release := make(chan bool)
-	rwc <- func(rw io.ReadWriter) error {
-		defer func() {
-			release <- true
-		}()
-		_, err := rw.Write([]byte{0xe0, 0})
-		return err
-	}
-	return release
+// Connack returns a CONNACK packet
+func Connack() []byte {
+	return []byte{0x20, 0, 0, 0}
 }
 
-// Ping sends PINGREQ and expects PINGRESP in return
-func Ping(rwc chan func(io.ReadWriter) error) {
-	rwc <- func(rw io.ReadWriter) error {
-		ping := []byte{0xc0, 0}
-		_, err := rw.Write(ping)
-		if err != nil {
-			return err
-		}
-		var b [2]byte
-		_, err = rw.Read(b[:])
-		if err != nil {
-			if stream.Timeout(err) {
-				// TODO: yield and retry
-				return fmt.Errorf("Error: read timeout waiting for PINGRESP")
-			}
-			if stream.Closed(err) {
-				return fmt.Errorf("connection closed by server")
-			}
-			return err
-		}
-		v, ok := ControlPacket[b[0]]
-		if ok && v == "PINGRESP" {
-			return nil
-		}
-		return fmt.Errorf("Error: server response in not PINGRESP: %x", b)
-	}
+// Disconnect returns a DISCONNECT packet
+func Disconnect() []byte {
+	return []byte{0xe0, 0}
+}
+
+// PingReq returns a PINGREQ packet
+func PingReq() []byte {
+	return []byte{0xc0, 0}
+}
+
+// PingResp returns a PINGRESP packet
+func PingResp() []byte {
+	return []byte{0xd0, 0}
 }

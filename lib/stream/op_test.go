@@ -1,17 +1,18 @@
-package packet
+package stream
 
 import (
 	"bytes"
 	"io"
 	"testing"
+
+	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
 // Connect will first write (append) a connect packet to buf
 // and then read the connack packet
 // After the connack packet has been read we can test the connect packet
 func TestConnectOk(t *testing.T) {
-	connack := []byte{0x20, 0, 0, 0}
-	buf := bytes.NewBuffer(connack)
+	buf := bytes.NewBuffer(packet.Connack())
 	rwc := make(chan func(io.ReadWriter) error)
 	go Connect(rwc)
 	fn := <-rwc
@@ -31,9 +32,7 @@ func TestConnectOk(t *testing.T) {
 // TODO: TestConnectFail
 
 func TestPingOk(t *testing.T) {
-	pingreq := []byte{0xc0, 0}
-	pingresp := []byte{0xd0, 0}
-	buf := bytes.NewBuffer(pingresp)
+	buf := bytes.NewBuffer(packet.PingResp())
 	rwc := make(chan func(io.ReadWriter) error)
 	go Ping(rwc)
 	fn := <-rwc
@@ -42,7 +41,7 @@ func TestPingOk(t *testing.T) {
 		t.Fatalf("pingresp error: %s", err)
 	}
 	b := buf.Bytes()
-	if !bytes.Equal(b, pingreq) {
+	if !bytes.Equal(b, packet.PingReq()) {
 		t.Fatalf("pingreq error: %x", b)
 	}
 }

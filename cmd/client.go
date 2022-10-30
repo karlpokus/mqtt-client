@@ -1,47 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/karlpokus/mqtt-client/lib/packet"
 	"github.com/karlpokus/mqtt-client/lib/stream"
 )
-
-// parse reads from rw until timeout
-func parse(rwc chan func(io.ReadWriter) error) chan bool {
-	release := make(chan bool)
-	rwc <- func(rw io.ReadWriter) error {
-		defer func() {
-			release <- true
-		}()
-		log.Println("parse start") // debug
-		var b [64]byte
-		n, err := rw.Read(b[:]) // blocking
-		if err != nil {
-			if stream.Timeout(err) {
-				log.Println("parse read timeout") // debug
-				return nil
-			}
-			if stream.Closed(err) {
-				return fmt.Errorf("connection closed by server")
-			}
-			return err
-		}
-		v, ok := packet.ControlPacket[b[0]]
-		if ok {
-			log.Printf("%s recieved", v)
-		} else {
-			log.Printf("%x", b[:n]) // dump hex
-		}
-		return nil
-	}
-	return release
-}
 
 func interrupt() <-chan os.Signal {
 	sigc := make(chan os.Signal, 1)
@@ -59,20 +26,20 @@ func main() {
 		case err := <-fatal:
 			log.Printf("%s", err)
 		case <-interrupt():
-			<-packet.Disconnect(rwc)
+			<-stream.Disconnect(rwc)
 		}
 		log.Println("client exiting")
 		os.Exit(1)
 	}()
 	go stream.Listen(rwc, fatal)
-	packet.Connect(rwc)
+	stream.Connect(rwc)
 	go func() {
 		for {
-			packet.Ping(rwc)
+			stream.Ping(rwc)
 			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
 		}
 	}()
 	for {
-		<-parse(rwc) // temporary dump func
+		<-stream.Parse(rwc) // temporary dump func
 	}
 }
