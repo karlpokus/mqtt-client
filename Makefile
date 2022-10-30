@@ -1,5 +1,8 @@
-test:
+fmt:
+	@go fmt ./...
+
+test: fmt
 	@go test ./...
 
-run:
+run: fmt
 	@go run cmd/client.go
