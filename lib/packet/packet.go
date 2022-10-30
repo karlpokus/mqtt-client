@@ -3,7 +3,6 @@ package packet
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/karlpokus/mqtt-client/lib/stream"
 )
@@ -86,10 +85,8 @@ func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
 	release := make(chan bool)
 	rwc <- func(rw io.ReadWriter) error {
 		defer func() {
-			log.Println("Disconnect end") // debug
 			release <- true
 		}()
-		log.Println("Disconnect start") // debug
 		_, err := rw.Write([]byte{0xe0, 0})
 		return err
 	}
@@ -99,14 +96,8 @@ func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
 // Ping sends PINGREQ and expects PINGRESP in return
 func Ping(rwc chan func(io.ReadWriter) error) {
 	rwc <- func(rw io.ReadWriter) error {
-		defer log.Println("Ping end") // debug
-		log.Println("Ping start")     // debug
 		ping := []byte{0xc0, 0}
 		_, err := rw.Write(ping)
-		if err != nil {
-			return err
-		}
-		err = stream.SetReadDeadline(rw, 5)
 		if err != nil {
 			return err
 		}

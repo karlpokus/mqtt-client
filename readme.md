@@ -30,7 +30,7 @@ $ make run
 - [ ] handle conn errors https://github.com/karlpokus/broker/blob/master/pkg/broker/broker.go
 - [x] try bytes.Buffer and buf.WriteTo(conn)
 - [ ] close connection on disconnect
-- [ ] rw wrapper that log op codes i.e stream.New
+- [x] rw wrapper that log op codes
 - [x] time share rw
 - [ ] try buffered rwc
 - [ ] stream.Fake() ?

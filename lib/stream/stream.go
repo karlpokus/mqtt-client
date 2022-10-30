@@ -2,15 +2,25 @@ package stream
 
 import (
 	"io"
+	"log"
 	"net"
 	"time"
 )
 
+var controlPacket = map[uint8]string{
+	0x10: "CONNECT",
+	0x20: "CONNACK",
+	0xc0: "PINGREQ",
+	0xd0: "PINGRESP",
+	0xe0: "DISCONNECT",
+}
+
+// TODO: Stream -> stream - it does not need to be exposed
 type Stream struct {
 	rw io.ReadWriter
 }
 
-// Listen exposes a Stream to funcs on rwc
+// Listen exposes a Stream as a ReadWriter to funcs on rwc
 func Listen(rwc chan func(io.ReadWriter) error, fatal chan error) {
 	stm, err := new()
 	if err != nil {
@@ -37,26 +47,37 @@ func new() (*Stream, error) {
 	}, nil
 }
 
+// Read performs the duties of an io.Reader,
+// sets a read deadline if it finds an embedded net.Conn and
+// logs the op code of the read packet
 func (stm *Stream) Read(p []byte) (int, error) {
-	//log.Printf("read %x") p[0]
-	return stm.rw.Read(p)
-}
-
-func (stm *Stream) Write(p []byte) (int, error) {
-	return stm.rw.Write(p)
-}
-
-// SetReadDeadline sets a read deadline if rw has an embedded net.Conn
-func SetReadDeadline(rw io.ReadWriter, i int) error {
-	if stm, ok := rw.(*Stream); ok {
-		if conn, ok := stm.rw.(net.Conn); ok {
-			err := conn.SetReadDeadline(time.Now().Add(time.Duration(i) * time.Second))
-			if err != nil {
-				return err
-			}
+	ttl := 5
+	if conn, ok := stm.rw.(net.Conn); ok {
+		err := conn.SetReadDeadline(time.Now().Add(time.Duration(ttl) * time.Second))
+		if err != nil {
+			return 0, err
 		}
 	}
-	return nil
+	n, err := stm.rw.Read(p)
+	op := p[0]
+	if v, ok := controlPacket[op]; ok {
+		log.Printf("%s read", v)
+	} else {
+		log.Printf("unknown op %x read", op)
+	}
+	return n, err
+}
+
+// Write performs the duties of an io.Writer and
+// logs the op code of the written packet
+func (stm *Stream) Write(p []byte) (int, error) {
+	op := p[0]
+	if v, ok := controlPacket[op]; ok {
+		log.Printf("%s written", v)
+	} else {
+		log.Printf("unknown op %x written", op)
+	}
+	return stm.rw.Write(p)
 }
 
 // Timeout returns true if err is a timeout

@@ -20,12 +20,8 @@ func parse(rwc chan func(io.ReadWriter) error) chan bool {
 			release <- true
 		}()
 		log.Println("parse start") // debug
-		err := stream.SetReadDeadline(rw, 5)
-		if err != nil {
-			return err
-		}
 		var b [64]byte
-		n, err := rw.Read(b[:]) // blocking read
+		n, err := rw.Read(b[:]) // blocking
 		if err != nil {
 			if stream.Timeout(err) {
 				log.Println("parse read timeout") // debug
