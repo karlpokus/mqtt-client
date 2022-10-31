@@ -52,6 +52,9 @@ func (stm *stream) Read(p []byte) (int, error) {
 		}
 	}
 	n, err := stm.rw.Read(p)
+	if err != nil {
+		return n, err
+	}
 	op := p[0]
 	if v, ok := packet.ControlPacket[op]; ok {
 		log.Printf("%s read", v)
