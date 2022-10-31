@@ -36,3 +36,4 @@ $ make run
 - [ ] stream.Fake() ?
 - [x] rw error handling options: pass fatal or return err
 - [x] move opFuncs from packet to stream
+- [ ] OpFunc execution timeout

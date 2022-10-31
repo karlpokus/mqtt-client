@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -20,26 +19,26 @@ func main() {
 	//log.SetFlags(0)
 	log.Println("client started")
 	fatal := make(chan error)
-	rwc := make(chan func(io.ReadWriter) error)
+	ops := make(chan stream.Op)
 	go func() {
 		select {
 		case err := <-fatal:
 			log.Printf("%s", err)
 		case <-interrupt():
-			<-stream.Disconnect(rwc)
+			<-stream.Disconnect(ops)
 		}
 		log.Println("client exiting")
 		os.Exit(1)
 	}()
-	go stream.Listen(rwc, fatal)
-	stream.Connect(rwc)
+	go stream.Listen(ops, fatal)
+	stream.Connect(ops)
 	go func() {
 		for {
-			stream.Ping(rwc)
+			stream.Ping(ops)
 			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
 		}
 	}()
 	for {
-		<-stream.Parse(rwc) // temporary dump func
+		<-stream.Parse(ops) // temporary dump func
 	}
 }

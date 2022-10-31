@@ -13,15 +13,15 @@ type stream struct {
 	rw io.ReadWriter
 }
 
-// Listen exposes a stream as a ReadWriter to funcs on rwc
-func Listen(rwc chan func(io.ReadWriter) error, fatal chan error) {
+// Listen exposes a stream as a ReadWriter to Op funcs on the ops channel
+func Listen(ops chan Op, fatal chan error) {
 	stm, err := new()
 	if err != nil {
 		fatal <- err
 		return
 	}
-	for fn := range rwc {
-		err := fn(stm)
+	for op := range ops {
+		err := op(stm)
 		if err != nil {
 			fatal <- err
 			return

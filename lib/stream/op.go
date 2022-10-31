@@ -9,9 +9,11 @@ import (
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
+type Op func(io.ReadWriter) error
+
 // Connect sends CONNECT and expects CONNACK in return
-func Connect(rwc chan func(io.ReadWriter) error) {
-	rwc <- func(rw io.ReadWriter) error {
+func Connect(ops chan Op) {
+	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Connect("bixa")) // bixa the cat
 		if err != nil {
 			return err
@@ -38,8 +40,8 @@ func connackVerify(b [4]byte) error {
 }
 
 // Ping sends PINGREQ and expects PINGRESP in return
-func Ping(rwc chan func(io.ReadWriter) error) {
-	rwc <- func(rw io.ReadWriter) error {
+func Ping(ops chan Op) {
+	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.PingReq())
 		if err != nil {
 			return err
@@ -64,9 +66,9 @@ func Ping(rwc chan func(io.ReadWriter) error) {
 	}
 }
 
-func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
+func Disconnect(ops chan Op) chan bool {
 	release := make(chan bool)
-	rwc <- func(rw io.ReadWriter) error {
+	ops <- func(rw io.ReadWriter) error {
 		defer func() {
 			release <- true
 		}()
@@ -77,9 +79,9 @@ func Disconnect(rwc chan func(io.ReadWriter) error) chan bool {
 }
 
 // Parse reads from rw until timeout
-func Parse(rwc chan func(io.ReadWriter) error) chan bool {
+func Parse(ops chan Op) chan bool {
 	release := make(chan bool)
-	rwc <- func(rw io.ReadWriter) error {
+	ops <- func(rw io.ReadWriter) error {
 		defer func() {
 			release <- true
 		}()

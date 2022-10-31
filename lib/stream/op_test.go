@@ -2,7 +2,6 @@ package stream
 
 import (
 	"bytes"
-	"io"
 	"testing"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
@@ -13,10 +12,10 @@ import (
 // After the connack packet has been read we can test the connect packet
 func TestConnectOk(t *testing.T) {
 	buf := bytes.NewBuffer(packet.Connack())
-	rwc := make(chan func(io.ReadWriter) error)
-	go Connect(rwc)
-	fn := <-rwc
-	err := fn(buf)
+	ops := make(chan Op)
+	go Connect(ops)
+	op := <-ops
+	err := op(buf)
 	if err != nil {
 		t.Fatalf("connack error: %s", err)
 	}
@@ -33,10 +32,10 @@ func TestConnectOk(t *testing.T) {
 
 func TestPingOk(t *testing.T) {
 	buf := bytes.NewBuffer(packet.PingResp())
-	rwc := make(chan func(io.ReadWriter) error)
-	go Ping(rwc)
-	fn := <-rwc
-	err := fn(buf)
+	ops := make(chan Op)
+	go Ping(ops)
+	op := <-ops
+	err := op(buf)
 	if err != nil {
 		t.Fatalf("pingresp error: %s", err)
 	}
