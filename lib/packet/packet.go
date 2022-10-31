@@ -17,6 +17,14 @@ var ConnackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
+func Is(b uint8, s string) bool {
+	v, ok := ControlPacket[b]
+	if ok && v == s {
+		return true
+	}
+	return false
+}
+
 // connect returns a CONNECT packet
 func Connect(clientId string) []byte {
 	fixedHeaderLen := 2

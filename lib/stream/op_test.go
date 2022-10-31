@@ -43,7 +43,7 @@ func TestConnectFail(t *testing.T) {
 	go Connect(ops)
 	op := <-ops
 	err := op(stm)
-	if !errors.Is(err, errorNotConnack) {
+	if !errors.Is(err, ErrBadPacket) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
@@ -72,7 +72,7 @@ func TestPingFail(t *testing.T) {
 	go Ping(ops)
 	op := <-ops
 	err := op(stm)
-	if !errors.Is(err, errorNotPingResp) {
+	if !errors.Is(err, ErrBadPacket) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }

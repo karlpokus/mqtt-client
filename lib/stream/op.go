@@ -13,9 +13,10 @@ import (
 type Op func(io.ReadWriter) error
 
 var (
-	errorNotConnack           = errors.New("Error: not CONNACK")
-	errorBadConnackReturnCode = errors.New("Error: bad CONNACK return code")
-	errorNotPingResp          = errors.New("Error: not PINGRESP")
+	ErrBadPacket     = errors.New("unexpected packet")
+	ErrBadReturnCode = errors.New("bad return code")
+	ErrReadTimeout   = errors.New("read timeout")
+	ErrConnClosed    = errors.New("connection closed")
 )
 
 // Connect sends CONNECT and expects CONNACK in return
@@ -28,22 +29,23 @@ func Connect(ops chan Op) {
 		var b [4]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
+			if timeout(err) {
+				return ErrReadTimeout
+			}
+			if closed(err) {
+				return ErrConnClosed
+			}
 			return err
 		}
-		return connackVerify(b)
+		if !packet.Is(b[0], "CONNACK") {
+			return fmt.Errorf("%x %w", b, ErrBadPacket)
+		}
+		// TODO: verify session present flag
+		if b[3] != 0 {
+			return fmt.Errorf("%s %w", packet.ConnackReturnCodeDesc[b[3]], ErrBadReturnCode)
+		}
+		return nil
 	}
-}
-
-// connackVerify verifies the control code and return code of CONNACK
-func connackVerify(b [4]byte) error {
-	if b[0] != 0x20 {
-		return fmt.Errorf("Error: server response: %x %w", b, errorNotConnack)
-	}
-	// TODO: verify session present flag
-	if b[3] != 0 {
-		return fmt.Errorf("Error: connack return code: %s %w", packet.ConnackReturnCodeDesc[b[3]], errorBadConnackReturnCode)
-	}
-	return nil
 }
 
 // Ping sends PINGREQ and expects PINGRESP in return
@@ -58,19 +60,17 @@ func Ping(ops chan Op) {
 		if err != nil {
 			if timeout(err) {
 				// TODO: yield and retry
-				return fmt.Errorf("Error: read timeout waiting for PINGRESP")
+				return ErrReadTimeout
 			}
 			if closed(err) {
-				return fmt.Errorf("connection closed by server")
+				return ErrConnClosed
 			}
 			return err
 		}
-		// TODO: packet integrity checks should move to lib packet
-		v, ok := packet.ControlPacket[b[0]]
-		if ok && v == "PINGRESP" {
-			return nil
+		if !packet.Is(b[0], "PINGRESP") {
+			return fmt.Errorf("%x %w", b, ErrBadPacket)
 		}
-		return fmt.Errorf("Error: server response: %x %w", b, errorNotPingResp)
+		return nil
 	}
 }
 
@@ -102,7 +102,7 @@ func Parse(ops chan Op) chan bool {
 				return nil
 			}
 			if closed(err) {
-				return fmt.Errorf("connection closed by server")
+				return ErrConnClosed
 			}
 			return err
 		}
