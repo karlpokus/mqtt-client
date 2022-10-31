@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,12 @@ import (
 )
 
 type Op func(io.ReadWriter) error
+
+var (
+	errorNotConnack           = errors.New("Error: not CONNACK")
+	errorBadConnackReturnCode = errors.New("Error: bad CONNACK return code")
+	errorNotPingResp          = errors.New("Error: not PINGRESP")
+)
 
 // Connect sends CONNECT and expects CONNACK in return
 func Connect(ops chan Op) {
@@ -30,11 +37,11 @@ func Connect(ops chan Op) {
 // connackVerify verifies the control code and return code of CONNACK
 func connackVerify(b [4]byte) error {
 	if b[0] != 0x20 {
-		return fmt.Errorf("Error: server response is not CONNACK: %x", b)
+		return fmt.Errorf("Error: server response: %x %w", b, errorNotConnack)
 	}
 	// TODO: verify session present flag
 	if b[3] != 0 {
-		return fmt.Errorf("Error: connack return code: %s", packet.ConnackReturnCodeDesc[b[3]])
+		return fmt.Errorf("Error: connack return code: %s %w", packet.ConnackReturnCodeDesc[b[3]], errorBadConnackReturnCode)
 	}
 	return nil
 }
@@ -58,11 +65,12 @@ func Ping(ops chan Op) {
 			}
 			return err
 		}
+		// TODO: packet integrity checks should move to lib packet
 		v, ok := packet.ControlPacket[b[0]]
 		if ok && v == "PINGRESP" {
 			return nil
 		}
-		return fmt.Errorf("Error: server response in not PINGRESP: %x", b)
+		return fmt.Errorf("Error: server response: %x %w", b, errorNotPingResp)
 	}
 }
 

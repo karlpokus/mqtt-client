@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
@@ -34,7 +35,18 @@ func TestConnectOk(t *testing.T) {
 	}
 }
 
-// TODO: TestConnectFail
+func TestConnectFail(t *testing.T) {
+	notConnack := []byte{0xd0, 0, 0, 0}
+	buf := bytes.NewBuffer(notConnack)
+	stm := fake(buf)
+	ops := make(chan Op)
+	go Connect(ops)
+	op := <-ops
+	err := op(stm)
+	if !errors.Is(err, errorNotConnack) {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
 
 func TestPingOk(t *testing.T) {
 	buf := bytes.NewBuffer(packet.PingResp())
@@ -52,4 +64,15 @@ func TestPingOk(t *testing.T) {
 	}
 }
 
-// TODO: TestPingFail
+func TestPingFail(t *testing.T) {
+	notPingresp := []byte{0xe0, 0}
+	buf := bytes.NewBuffer(notPingresp)
+	stm := fake(buf)
+	ops := make(chan Op)
+	go Ping(ops)
+	op := <-ops
+	err := op(stm)
+	if !errors.Is(err, errorNotPingResp) {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
