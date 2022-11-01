@@ -9,6 +9,7 @@ Composition over inheritance. Sending packets on a stream.
 - Use `<-func()` to indicate waiting
 - `len(chan)` only shows unread items, not pending writers
 - `SIGINT` takes a while since `DISCONNECT` is also time sharing the stream
+- Can I cancel the blocking `net.Conn.Read`?
 
 # usage
 ````bash
@@ -33,7 +34,8 @@ $ make run
 - [x] rw wrapper that log op codes
 - [x] time share rw
 - [ ] try buffered rwc
-- [ ] stream.Fake() ?
+- [x] stream.Fake
 - [x] rw error handling options: pass fatal or return err
 - [x] move opFuncs from packet to stream
-- [ ] OpFunc execution timeout
+- [ ] type Op execution timeout
+- [x] implement read timeout for io.ReadWriter

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
@@ -15,8 +14,6 @@ type Op func(io.ReadWriter) error
 var (
 	ErrBadPacket     = errors.New("unexpected packet")
 	ErrBadReturnCode = errors.New("bad return code")
-	ErrReadTimeout   = errors.New("read timeout")
-	ErrConnClosed    = errors.New("connection closed")
 )
 
 // Connect sends CONNECT and expects CONNACK in return
@@ -29,12 +26,6 @@ func Connect(ops chan Op) {
 		var b [4]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
-			if timeout(err) {
-				return ErrReadTimeout
-			}
-			if closed(err) {
-				return ErrConnClosed
-			}
 			return err
 		}
 		if !packet.Is(b[0], "CONNACK") {
@@ -58,13 +49,7 @@ func Ping(ops chan Op) {
 		var b [2]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
-			if timeout(err) {
-				// TODO: yield and retry
-				return ErrReadTimeout
-			}
-			if closed(err) {
-				return ErrConnClosed
-			}
+			// TODO: yield and retry if timeout
 			return err
 		}
 		if !packet.Is(b[0], "PINGRESP") {
@@ -97,12 +82,9 @@ func Parse(ops chan Op) chan bool {
 		var b [64]byte
 		n, err := rw.Read(b[:]) // blocking
 		if err != nil {
-			if timeout(err) {
+			if errors.Is(err, ErrReadTimeout) {
 				log.Println("parse read timeout") // debug
 				return nil
-			}
-			if closed(err) {
-				return ErrConnClosed
 			}
 			return err
 		}
@@ -115,17 +97,4 @@ func Parse(ops chan Op) chan bool {
 		return nil
 	}
 	return release
-}
-
-// timeout returns true if err is a timeout
-func timeout(err error) bool {
-	if terr, ok := err.(net.Error); ok && terr.Timeout() {
-		return true
-	}
-	return false
-}
-
-// closed returns true if err indicates that the stream is closed
-func closed(err error) bool {
-	return err == io.EOF
 }
