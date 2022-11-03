@@ -50,6 +50,7 @@ func Ping(ops chan Op) {
 		_, err = rw.Read(b[:])
 		if err != nil {
 			// TODO: yield and retry if timeout
+			// if errors.Is(err, ErrReadTimeout) {}
 			return err
 		}
 		if !packet.Is(b[0], "PINGRESP") {
@@ -71,11 +72,12 @@ func Disconnect(ops chan Op) chan bool {
 	return release
 }
 
-// Parse reads from rw until timeout
-func Parse(ops chan Op) chan bool {
+// Read reads from rw and writes to res
+func Read(ops chan Op, res chan *Response) chan bool {
 	release := make(chan bool)
 	ops <- func(rw io.ReadWriter) error {
 		defer func() {
+			log.Println("parse end") // debug
 			release <- true
 		}()
 		log.Println("parse start") // debug
@@ -83,18 +85,38 @@ func Parse(ops chan Op) chan bool {
 		n, err := rw.Read(b[:]) // blocking
 		if err != nil {
 			if errors.Is(err, ErrReadTimeout) {
-				log.Println("parse read timeout") // debug
 				return nil
 			}
 			return err
 		}
-		v, ok := packet.ControlPacket[b[0]]
-		if ok {
-			log.Printf("%s recieved", v)
-		} else {
-			log.Printf("%x", b[:n]) // dump hex
+		if packet.Is(b[0], "PUBLISH") {
+			t, m := packet.ParsePublish(b[:n])
+			res <- &Response{
+				topic:   t,
+				message: m,
+			}
 		}
 		return nil
 	}
 	return release
+}
+
+func Subscribe(ops chan Op, topic string) {
+	ops <- func(rw io.ReadWriter) error {
+		_, err := rw.Write(packet.Subscribe(topic))
+		if err != nil {
+			return err
+		}
+		var b [5]byte
+		_, err = rw.Read(b[:])
+		if err != nil {
+			// TODO: yield and retry if timeout
+			return err
+		}
+		if !packet.Is(b[0], "SUBACK") {
+			return fmt.Errorf("%x %w", b, ErrBadPacket)
+		}
+		// TODO: check return code in b[5]
+		return nil
+	}
 }

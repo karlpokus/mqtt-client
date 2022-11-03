@@ -1,11 +1,16 @@
 package packet
 
+import "bytes"
+
 var ControlPacket = map[uint8]string{
 	0x10: "CONNECT",
 	0x20: "CONNACK",
 	0xc0: "PINGREQ",
 	0xd0: "PINGRESP",
 	0xe0: "DISCONNECT",
+	0x82: "SUBSCRIBE",
+	0x90: "SUBACK",
+	0x30: "PUBLISH",
 }
 
 var ConnackReturnCodeDesc = []string{
@@ -17,9 +22,9 @@ var ConnackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
+// Is returns true if key b matches value s in ControlPacket
 func Is(b uint8, s string) bool {
-	v, ok := ControlPacket[b]
-	if ok && v == s {
+	if v, ok := ControlPacket[b]; ok && v == s {
 		return true
 	}
 	return false
@@ -77,4 +82,64 @@ func PingReq() []byte {
 // PingResp returns a PINGRESP packet
 func PingResp() []byte {
 	return []byte{0xd0, 0}
+}
+
+// fixed var   payload
+// 82 09 00 01 00 04 74 65    73 74 00
+// .  .  .  .  .  .  t  e     s  t  .
+func Subscribe(topic string) []byte {
+	var buf bytes.Buffer
+	// fixed header - 2 bytes
+	buf.WriteByte(0x82)
+	buf.WriteByte(uint8(2 + 2 + len(topic) + 1))
+	// var header - 2 bytes
+	buf.WriteByte(0) // packet id MSB
+	buf.WriteByte(1) // packet id LSB TODO: need to bump for future subscriptions?
+	// payload
+	buf.WriteByte(0)                 // len MSB
+	buf.WriteByte(uint8(len(topic))) // len LSB
+	buf.Write([]byte(topic))
+	buf.WriteByte(0) // QoS per topic
+	return buf.Bytes()
+}
+
+// fixed var   payload
+// 90 03 00 01 00
+// TODO: compare packet id
+// note: we might get PUBLISH before SUBACK
+func Suback() []byte {
+	var buf bytes.Buffer
+	// fixed header - 2 bytes
+	buf.WriteByte(0x90)
+	buf.WriteByte(3) // remaining len
+	// var header - 2 bytes
+	buf.WriteByte(0) // packet id MSB
+	buf.WriteByte(1) // packet id LSB
+	// payload - 1 byte
+	// Allowed return codes:
+	// 0x00 - Success - Maximum QoS 0
+	// 0x01 - Success - Maximum QoS 1
+	// 0x02 - Success - Maximum QoS 2
+	// 0x80 - Failure
+	buf.WriteByte(0)
+	return buf.Bytes()
+}
+
+// pub: svammel
+// fixed var               payload
+// 30 0d 00 04 74 65 73 74 73 76 61 6d 6d 65 6c
+//	           t  e  s  t  s  v  a  m  m  e  l
+// TODO: check DUP
+// TODO: check packet id
+// ParsePublish returns topic and message from b
+func ParsePublish(b []byte) (string, string) {
+	// fixed header: 2 bytes
+	// var header: 2 + len(topic) bytes
+	// no packet id?
+	topicStart := 4
+	topicLen := int(b[3])
+	topicEnd := topicStart + topicLen
+	topic := string(b[topicStart:topicEnd])
+	message := string(b[topicEnd:len(b)])
+	return topic, message
 }

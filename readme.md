@@ -4,6 +4,9 @@ An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mq
 # design
 Composition over inheritance. Sending packets on a stream.
 
+request -> op write -> packet -> stream
+stream -> packet -> op read -> response
+
 # notes
 - Use `printf "%d\n" <hex>` and `printf "%x\n" <int>` to convert between integer and hex
 - Use `<-func()` to indicate waiting
@@ -25,6 +28,7 @@ $ make run
 - [x] pingresp
 - [x] disconnect
 - [x] tests
+- [x] sub
 - [ ] pub
 - [x] parse connack return codes
 - [x] verify pingresp after sending pingreq
@@ -39,3 +43,8 @@ $ make run
 - [x] move opFuncs from packet to stream
 - [ ] type Op execution timeout
 - [x] implement read timeout for io.ReadWriter
+- [x] client ui
+- [ ] client config
+- [ ] client topic router
+- [ ] prefix log records
+- [ ] stop ops listener on fatal error

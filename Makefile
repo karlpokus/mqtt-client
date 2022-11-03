@@ -5,4 +5,4 @@ test: fmt
 	@go test ./...
 
 run: fmt
-	@go run cmd/client.go
+	@go run cmd/main.go

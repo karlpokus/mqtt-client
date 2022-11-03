@@ -21,6 +21,7 @@ var (
 
 // Listen exposes a stream as a ReadWriter to Op funcs on the ops channel
 func Listen(ops chan Op, fatal chan error) {
+	// TODO: use context to stop listener on fatal error
 	stm, err := new()
 	if err != nil {
 		fatal <- err
@@ -53,7 +54,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 		if p[0] != 0 {
 			// something was read
 			if v, ok := packet.ControlPacket[p[0]]; ok {
-				log.Printf("%s read", v)
+				log.Printf("%s", v)
 			} else {
 				log.Printf("unknown op %x read", p[0])
 			}
@@ -101,7 +102,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 func (stm *stream) Write(p []byte) (int, error) {
 	op := p[0]
 	if v, ok := packet.ControlPacket[op]; ok {
-		log.Printf("%s written", v)
+		log.Printf("%s", v)
 	} else {
 		log.Printf("unknown op %x written", op)
 	}
