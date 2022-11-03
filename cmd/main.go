@@ -23,7 +23,7 @@ func main() {
 			log.Printf("message %q on topic %q", r.Message(), r.Topic())
 		}
 	}()
-	req <- stream.Sub("test")
-	//req <- stream.Pub("test", []byte("hello world"))
+	req <- stream.Subscribe("test")
+	//req <- stream.Publish("test", []byte("hello world"))
 	<-exit
 }

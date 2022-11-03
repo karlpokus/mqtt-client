@@ -37,12 +37,12 @@ func (r *Response) Message() string {
 }
 
 // user-friendly wrapper
-func Sub(topic string) *Request {
+func Subscribe(topic string) *Request {
 	return &Request{topic: topic}
 }
 
 // user-friendly wrapper
-func Pub(topic string, payload []byte) *Request {
+func Publish(topic string, payload []byte) *Request {
 	return &Request{topic, payload}
 }
 
@@ -57,7 +57,7 @@ func notice(m string, f bool) *Response {
 func NewClient() (chan<- *Request, <-chan *Response) {
 	//log.SetFlags(0)
 	fatal := make(chan error)
-	ops := make(chan Op)
+	ops := make(chan op)
 	req := make(chan *Request)
 	res := make(chan *Response)
 	go func() {
@@ -69,18 +69,18 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 			// stop listener
 			// close connection
 		case <-interrupt():
-			<-Disconnect(ops)
+			<-disconnect(ops)
 			res <- notice("sigint", true)
 		}
 		// TODO: close connection?
 	}()
-	go Listen(ops, fatal) // TODO: unexpose
-	Connect(ops)
+	go listen(ops, fatal)
+	connect(ops)
 	go func() {
 		for r := range req {
 			if isSub(r) {
 				res <- notice(fmt.Sprintf("subscribed to %s", r.topic), false)
-				Subscribe(ops, r.topic)
+				subscribe(ops, r.topic)
 				continue
 			}
 			/* pub echo
@@ -94,13 +94,13 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 		for {
 			// TODO: retry on timeout
 			// return ttl on channel
-			Ping(ops)
+			ping(ops)
 			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
 		}
 	}()
 	go func() {
 		for {
-			<-Read(ops, res)
+			<-read(ops, res)
 		}
 	}()
 	return req, res

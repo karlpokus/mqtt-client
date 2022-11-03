@@ -9,15 +9,15 @@ import (
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
-type Op func(io.ReadWriter) error
+type op func(io.ReadWriter) error
 
 var (
 	ErrBadPacket     = errors.New("unexpected packet")
 	ErrBadReturnCode = errors.New("bad return code")
 )
 
-// Connect sends CONNECT and expects CONNACK in return
-func Connect(ops chan Op) {
+// connect sends CONNECT and expects CONNACK in return
+func connect(ops chan op) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Connect("bixa")) // bixa the cat
 		if err != nil {
@@ -39,8 +39,8 @@ func Connect(ops chan Op) {
 	}
 }
 
-// Ping sends PINGREQ and expects PINGRESP in return
-func Ping(ops chan Op) {
+// ping sends PINGREQ and expects PINGRESP in return
+func ping(ops chan op) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.PingReq())
 		if err != nil {
@@ -60,7 +60,7 @@ func Ping(ops chan Op) {
 	}
 }
 
-func Disconnect(ops chan Op) chan bool {
+func disconnect(ops chan op) chan bool {
 	release := make(chan bool)
 	ops <- func(rw io.ReadWriter) error {
 		defer func() {
@@ -72,8 +72,8 @@ func Disconnect(ops chan Op) chan bool {
 	return release
 }
 
-// Read reads from rw and writes to res
-func Read(ops chan Op, res chan *Response) chan bool {
+// read reads from rw and writes to res
+func read(ops chan op, res chan *Response) chan bool {
 	release := make(chan bool)
 	ops <- func(rw io.ReadWriter) error {
 		defer func() {
@@ -101,7 +101,7 @@ func Read(ops chan Op, res chan *Response) chan bool {
 	return release
 }
 
-func Subscribe(ops chan Op, topic string) {
+func subscribe(ops chan op, topic string) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Subscribe(topic))
 		if err != nil {

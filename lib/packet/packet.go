@@ -128,7 +128,9 @@ func Suback() []byte {
 // pub: svammel
 // fixed var               payload
 // 30 0d 00 04 74 65 73 74 73 76 61 6d 6d 65 6c
-//	           t  e  s  t  s  v  a  m  m  e  l
+//
+//	t  e  s  t  s  v  a  m  m  e  l
+//
 // TODO: check DUP
 // TODO: check packet id
 // ParsePublish returns topic and message from b

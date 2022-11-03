@@ -41,7 +41,7 @@ $ make run
 - [x] stream.Fake
 - [x] rw error handling options: pass fatal or return err
 - [x] move opFuncs from packet to stream
-- [ ] type Op execution timeout
+- [ ] type op execution timeout
 - [x] implement read timeout for io.ReadWriter
 - [x] client ui
 - [ ] client config

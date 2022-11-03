@@ -19,8 +19,8 @@ import (
 func TestConnectOk(t *testing.T) {
 	buf := bytes.NewBuffer(packet.Connack())
 	stm := fake(buf)
-	ops := make(chan Op)
-	go Connect(ops)
+	ops := make(chan op)
+	go connect(ops)
 	op := <-ops
 	err := op(stm)
 	if err != nil {
@@ -39,8 +39,8 @@ func TestConnectFail(t *testing.T) {
 	notConnack := []byte{0xd0, 0, 0, 0}
 	buf := bytes.NewBuffer(notConnack)
 	stm := fake(buf)
-	ops := make(chan Op)
-	go Connect(ops)
+	ops := make(chan op)
+	go connect(ops)
 	op := <-ops
 	err := op(stm)
 	if !errors.Is(err, ErrBadPacket) {
@@ -51,8 +51,8 @@ func TestConnectFail(t *testing.T) {
 func TestPingOk(t *testing.T) {
 	buf := bytes.NewBuffer(packet.PingResp())
 	stm := fake(buf)
-	ops := make(chan Op)
-	go Ping(ops)
+	ops := make(chan op)
+	go ping(ops)
 	op := <-ops
 	err := op(stm)
 	if err != nil {
@@ -68,8 +68,8 @@ func TestPingFail(t *testing.T) {
 	notPingresp := []byte{0xe0, 0}
 	buf := bytes.NewBuffer(notPingresp)
 	stm := fake(buf)
-	ops := make(chan Op)
-	go Ping(ops)
+	ops := make(chan op)
+	go ping(ops)
 	op := <-ops
 	err := op(stm)
 	if !errors.Is(err, ErrBadPacket) {

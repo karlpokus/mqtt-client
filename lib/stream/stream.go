@@ -19,8 +19,8 @@ var (
 	ErrConnClosed  = errors.New("connection closed")
 )
 
-// Listen exposes a stream as a ReadWriter to Op funcs on the ops channel
-func Listen(ops chan Op, fatal chan error) {
+// listen exposes a stream as a ReadWriter to funcs on the ops channel
+func listen(ops chan op, fatal chan error) {
 	// TODO: use context to stop listener on fatal error
 	stm, err := new()
 	if err != nil {
