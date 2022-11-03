@@ -13,7 +13,7 @@ func main() {
 		for r := range res {
 			if r.Notice() {
 				if r.Fatal() {
-					log.Printf("fatal %q", r.Message())
+					log.Printf("fatal %q", r.Err())
 					exit <- true
 					return
 				}

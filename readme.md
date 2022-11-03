@@ -48,3 +48,5 @@ $ make run
 - [ ] client topic router
 - [ ] prefix log records
 - [ ] stop ops listener on fatal error
+- [x] pass error in Response
+- [ ] ack pending queue

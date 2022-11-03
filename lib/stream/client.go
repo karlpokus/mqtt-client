@@ -1,7 +1,7 @@
 package stream
 
 import (
-	//"log"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -17,15 +17,21 @@ type Request struct {
 
 type Response struct {
 	topic, message string
-	fatal          bool
+	err            error
 }
+
+var ErrInterrupt = errors.New("interrupt signal")
 
 func (r *Response) Notice() bool {
 	return r.topic == "NOTICE"
 }
 
 func (r *Response) Fatal() bool {
-	return r.fatal
+	return r.err != nil
+}
+
+func (r *Response) Err() string {
+	return r.err.Error()
 }
 
 func (r *Response) Topic() string {
@@ -46,11 +52,17 @@ func Publish(topic string, payload []byte) *Request {
 	return &Request{topic, payload}
 }
 
-func notice(m string, f bool) *Response {
+func notice(m string) *Response {
 	return &Response{
 		topic:   "NOTICE",
 		message: m,
-		fatal:   f,
+	}
+}
+
+func noticeFatal(err error) *Response {
+	return &Response{
+		topic: "NOTICE",
+		err:   err,
 	}
 }
 
@@ -63,14 +75,14 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	go func() {
 		select {
 		case err := <-fatal: // go pipe(res, fatal)
-			res <- notice(err.Error(), true) // TODO: send err
+			res <- noticeFatal(err)
 			// TODOs:
 			// send disconnect if we're post connect
 			// stop listener
 			// close connection
 		case <-interrupt():
 			<-disconnect(ops)
-			res <- notice("sigint", true)
+			res <- noticeFatal(ErrInterrupt)
 		}
 		// TODO: close connection?
 	}()
@@ -79,7 +91,7 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	go func() {
 		for r := range req {
 			if isSub(r) {
-				res <- notice(fmt.Sprintf("subscribed to %s", r.topic), false)
+				res <- notice(fmt.Sprintf("subscribed to %s", r.topic))
 				subscribe(ops, r.topic)
 				continue
 			}
