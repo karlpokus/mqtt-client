@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
 // Request is a subscription if payload is nil
@@ -72,6 +74,7 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	ops := make(chan op)
 	req := make(chan *Request)
 	res := make(chan *Response)
+	acks := packet.NewAcks(fatal)
 	go func() {
 		select {
 		case err := <-fatal: // go pipe(res, fatal)
@@ -92,7 +95,7 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 		for r := range req {
 			if isSub(r) {
 				res <- notice(fmt.Sprintf("subscribed to %s", r.topic))
-				subscribe(ops, r.topic)
+				subscribe(ops, acks, r.topic)
 				continue
 			}
 			/* pub echo
@@ -112,7 +115,7 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	}()
 	go func() {
 		for {
-			<-read(ops, res)
+			<-read(ops, acks, res)
 		}
 	}()
 	return req, res

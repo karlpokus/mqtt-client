@@ -49,4 +49,6 @@ $ make run
 - [ ] prefix log records
 - [ ] stop ops listener on fatal error
 - [x] pass error in Response
-- [ ] ack pending queue
+- [x] ack pending queue
+- [ ] maybe rename type op to tx
+- [ ] good comments on packet bytes

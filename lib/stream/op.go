@@ -16,7 +16,8 @@ var (
 	ErrBadReturnCode = errors.New("bad return code")
 )
 
-// connect sends CONNECT and expects CONNACK in return
+// connect writes a CONNECT packet and expects to read
+// a CONNACK packet in return
 func connect(ops chan op) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Connect("bixa")) // bixa the cat
@@ -26,6 +27,7 @@ func connect(ops chan op) {
 		var b [4]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
+			// TODO: yield and retry on timeout
 			return err
 		}
 		if !packet.Is(b[0], "CONNACK") {
@@ -39,7 +41,8 @@ func connect(ops chan op) {
 	}
 }
 
-// ping sends PINGREQ and expects PINGRESP in return
+// ping writes a PINGREQ packet and expects to read
+// a PINGRESP packet in return
 func ping(ops chan op) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.PingReq())
@@ -50,7 +53,6 @@ func ping(ops chan op) {
 		_, err = rw.Read(b[:])
 		if err != nil {
 			// TODO: yield and retry if timeout
-			// if errors.Is(err, ErrReadTimeout) {}
 			return err
 		}
 		if !packet.Is(b[0], "PINGRESP") {
@@ -73,14 +75,14 @@ func disconnect(ops chan op) chan bool {
 }
 
 // read reads from rw and writes to res
-func read(ops chan op, res chan *Response) chan bool {
+func read(ops chan op, acks *packet.Acks, res chan *Response) chan bool {
 	release := make(chan bool)
 	ops <- func(rw io.ReadWriter) error {
 		defer func() {
-			log.Println("parse end") // debug
+			log.Println("DEBUG: read end")
 			release <- true
 		}()
-		log.Println("parse start") // debug
+		log.Println("DEBUG: read start")
 		var b [64]byte
 		n, err := rw.Read(b[:]) // blocking
 		if err != nil {
@@ -95,19 +97,31 @@ func read(ops chan op, res chan *Response) chan bool {
 				topic:   t,
 				message: m,
 			}
+			return nil
+		}
+		ack := acks.Pop(b[:n])
+		if ack != nil {
+			log.Printf("DEBUG: %x popped", b[:n])
 		}
 		return nil
 	}
 	return release
 }
 
-func subscribe(ops chan op, topic string) {
+func subscribe(ops chan op, acks *packet.Acks, topic string) {
 	ops <- func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Subscribe(topic))
 		if err != nil {
 			return err
 		}
-		var b [5]byte
+		// We must not read expecting SUBACK here
+		// since we might get PUBLISH first
+		<-acks.Push(&packet.Ack{
+			TTL:    30,
+			Packet: packet.Suback(),
+		})
+		return nil
+		/*var b [5]byte
 		_, err = rw.Read(b[:])
 		if err != nil {
 			// TODO: yield and retry if timeout
@@ -117,6 +131,6 @@ func subscribe(ops chan op, topic string) {
 			return fmt.Errorf("%x %w", b, ErrBadPacket)
 		}
 		// TODO: check return code in b[5]
-		return nil
+		return nil*/
 	}
 }
