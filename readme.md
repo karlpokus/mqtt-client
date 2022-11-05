@@ -4,7 +4,7 @@ An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mq
 # design goals
 - Composition over inheritance
 - Simplicity: just packets and a stream
-- Elegance. Yes, you heard me
+- Elegance. Yes, you heard me. Idiomatic go is elegant.
 - Decent test coverage
 
 # notes
@@ -57,5 +57,5 @@ $ make run
 - [ ] good comments on packet bytes
 - [x] expose Response.Message and Topic
 - [ ] *ack should include its name in timeout error
-- [ ] not before SUBACK popped should we notify client
+- [x] not before SUBACK popped should we notify client
 - [ ] maybe add a friendly name for pop feedback?

@@ -102,6 +102,9 @@ func read(ops chan op, acks *packet.Acks, res chan *Response) chan bool {
 		ack := acks.Pop(b[:n])
 		if ack != nil {
 			log.Printf("DEBUG: %x popped", b[:n])
+			if packet.Is(b[0], "SUBACK") {
+				res <- notice("subscription acked")
+			}
 		}
 		return nil
 	}

@@ -3,7 +3,6 @@ package stream
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"time"
@@ -81,14 +80,12 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 			<-disconnect(ops)
 		}
 		res <- noticeFatal(err)
-		// TODO: close connection?
 	}()
 	go listen(ctx, ops, fatal)
 	connect(ops)
 	go func() {
 		for r := range req {
 			if isSub(r) {
-				res <- notice(fmt.Sprintf("subscribed to %s", r.topic))
 				subscribe(ops, acks, r.topic)
 				continue
 			}
