@@ -94,8 +94,8 @@ func read(ops chan op, acks *packet.Acks, res chan *Response) chan bool {
 		if packet.Is(b[0], "PUBLISH") {
 			t, m := packet.ParsePublish(b[:n])
 			res <- &Response{
-				topic:   t,
-				message: m,
+				Topic:   t,
+				Message: m,
 			}
 			return nil
 		}

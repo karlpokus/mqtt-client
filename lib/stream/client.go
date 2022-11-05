@@ -18,14 +18,14 @@ type Request struct {
 }
 
 type Response struct {
-	topic, message string
+	Topic, Message string
 	err            error
 }
 
 var ErrInterrupt = errors.New("interrupt signal")
 
 func (r *Response) Notice() bool {
-	return r.topic == "NOTICE"
+	return r.Topic == "NOTICE"
 }
 
 func (r *Response) Fatal() bool {
@@ -34,14 +34,6 @@ func (r *Response) Fatal() bool {
 
 func (r *Response) Err() string {
 	return r.err.Error()
-}
-
-func (r *Response) Topic() string {
-	return r.topic
-}
-
-func (r *Response) Message() string {
-	return r.message
 }
 
 // user-friendly wrapper
@@ -56,14 +48,14 @@ func Publish(topic string, payload []byte) *Request {
 
 func notice(m string) *Response {
 	return &Response{
-		topic:   "NOTICE",
-		message: m,
+		Topic:   "NOTICE",
+		Message: m,
 	}
 }
 
 func noticeFatal(err error) *Response {
 	return &Response{
-		topic: "NOTICE",
+		Topic: "NOTICE",
 		err:   err,
 	}
 }

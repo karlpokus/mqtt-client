@@ -22,6 +22,17 @@ var (
 // listen exposes a stream as a ReadWriter to funcs on the ops channel
 func listen(ops chan op, fatal chan error) {
 	// TODO: use context to stop listener on fatal error
+	/*
+		defer log.Println("listener closed")
+		for {
+			select {
+			case op := <-ops:
+				// op()
+			case <-ctx.Done():
+				return
+			}
+		}
+	*/
 	stm, err := new()
 	if err != nil {
 		fatal <- err

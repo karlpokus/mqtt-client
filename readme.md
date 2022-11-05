@@ -52,3 +52,4 @@ $ make run
 - [x] ack pending queue
 - [ ] maybe rename type op to tx
 - [ ] good comments on packet bytes
+- [x] expose Response.Message and Topic

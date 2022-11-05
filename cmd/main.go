@@ -17,10 +17,10 @@ func main() {
 					exit <- true
 					return
 				}
-				log.Printf("notice %q", r.Message())
+				log.Printf("notice %q", r.Message)
 				continue
 			}
-			log.Printf("message %q on topic %q", r.Message(), r.Topic())
+			log.Printf("message %q on topic %q", r.Message, r.Topic)
 		}
 	}()
 	req <- stream.Subscribe("test")
