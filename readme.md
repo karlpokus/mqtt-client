@@ -1,18 +1,21 @@
 # mqtt-client
 An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718086). Mostly for learning bit operations, not for production use.
 
-# design
-Composition over inheritance. Sending packets on a stream.
-
-request -> op write -> packet -> stream
-stream -> packet -> op read -> response
+# design goals
+- Composition over inheritance
+- Simplicity: just packets and a stream
+- Elegance. Yes, you heard me
+- Decent test coverage
 
 # notes
 - Use `printf "%d\n" <hex>` and `printf "%x\n" <int>` to convert between integer and hex
 - Use `<-func()` to indicate waiting
 - `len(chan)` only shows unread items, not pending writers
 - `SIGINT` takes a while since `DISCONNECT` is also time sharing the stream
-- Can I cancel the blocking `net.Conn.Read`?
+- There is no way to cancel a blocking `net.Conn.Read`
+- Use `context` instead of closing a channel to abort reading a channel if you have multiple writers
+- Empty channels do not need to be closed. They will be garbage collected.
+- Stopping a `time.Timer` does not close `time.Timer.C` so stopping a timer while we're reading from it in another goroutine will leave the channel open. Will this leak that goroutine? Or will gb reap it?
 
 # usage
 ````bash
@@ -47,9 +50,12 @@ $ make run
 - [ ] client config
 - [ ] client topic router
 - [ ] prefix log records
-- [ ] stop ops listener on fatal error
+- [x] stop ops listener before exit
 - [x] pass error in Response
 - [x] ack pending queue
 - [ ] maybe rename type op to tx
 - [ ] good comments on packet bytes
 - [x] expose Response.Message and Topic
+- [ ] *ack should include its name in timeout error
+- [ ] not before SUBACK popped should we notify client
+- [ ] maybe add a friendly name for pop feedback?

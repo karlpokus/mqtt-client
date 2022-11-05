@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -20,28 +21,21 @@ var (
 )
 
 // listen exposes a stream as a ReadWriter to funcs on the ops channel
-func listen(ops chan op, fatal chan error) {
-	// TODO: use context to stop listener on fatal error
-	/*
-		defer log.Println("listener closed")
-		for {
-			select {
-			case op := <-ops:
-				// op()
-			case <-ctx.Done():
-				return
-			}
-		}
-	*/
+func listen(ctx context.Context, ops chan op, fatal chan error) {
 	stm, err := new()
 	if err != nil {
 		fatal <- err
 		return
 	}
-	for op := range ops {
-		err := op(stm)
-		if err != nil {
-			fatal <- err
+	defer log.Println("DEBUG: ops listener closed")
+	for {
+		select {
+		case op := <-ops:
+			err := op(stm)
+			if err != nil {
+				fatal <- err
+			}
+		case <-ctx.Done():
 			return
 		}
 	}

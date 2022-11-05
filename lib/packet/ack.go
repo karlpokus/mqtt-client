@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// TODO: add friendly name for pop feedback?
 type Ack struct {
 	TTL    int
 	Packet []byte
@@ -27,13 +26,6 @@ func NewAcks(errc chan error) *Acks {
 }
 
 func (acks *Acks) Push(ack *Ack) <-chan bool {
-	// NOTE: Stopping a time.Timer does not close
-	// time.Timer.C (we're not even allowed to close
-	// it since it's read-only).
-	// So stopping a time.Timer while we're reading from it
-	// in another goroutine will leave the channel open
-	// and leak that goroutine.
-	// So let's use an explicit cancellation signal instead
 	release := make(chan bool)
 	cancel := make(chan bool)
 	go func() {

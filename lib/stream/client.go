@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -67,21 +68,22 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	req := make(chan *Request)
 	res := make(chan *Response)
 	acks := packet.NewAcks(fatal)
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
+		var err error
+		defer cancel()
 		select {
-		case err := <-fatal: // go pipe(res, fatal)
-			res <- noticeFatal(err)
-			// TODOs:
-			// send disconnect if we're post connect
-			// stop listener
-			// close connection
+		case err = <-fatal:
 		case <-interrupt():
-			<-disconnect(ops)
-			res <- noticeFatal(ErrInterrupt)
+			err = ErrInterrupt
 		}
+		if !errors.Is(err, ErrConnClosed) {
+			<-disconnect(ops)
+		}
+		res <- noticeFatal(err)
 		// TODO: close connection?
 	}()
-	go listen(ops, fatal)
+	go listen(ctx, ops, fatal)
 	connect(ops)
 	go func() {
 		for r := range req {
