@@ -3,9 +3,9 @@ package stream
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
@@ -60,8 +60,8 @@ func noticeFatal(err error) *Response {
 	}
 }
 
-func NewClient() (chan<- *Request, <-chan *Response) {
-	//log.SetFlags(0)
+func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
+	// note: wrap everything below in a parent goroutine to return asap
 	fatal := make(chan error)
 	ops := make(chan op)
 	req := make(chan *Request)
@@ -70,23 +70,25 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		var err error
-		defer cancel()
 		select {
 		case err = <-fatal:
 		case <-interrupt():
 			err = ErrInterrupt
+			cancel()
 		}
+		// At this point cancel has been run
 		if !errors.Is(err, ErrConnClosed) {
 			<-disconnect(ops)
 		}
+		close(ops) // so this should be safe
 		res <- noticeFatal(err)
 	}()
-	go listen(ctx, ops, fatal)
+	go listen(cancel, rw, ops, fatal)
 	connect(ops)
 	go func() {
 		for r := range req {
 			if isSub(r) {
-				subscribe(ops, acks, r.topic)
+				subscribe(ctx, ops, acks, r.topic)
 				continue
 			}
 			/* pub echo
@@ -96,19 +98,8 @@ func NewClient() (chan<- *Request, <-chan *Response) {
 			}*/
 		}
 	}()
-	go func() {
-		for {
-			// TODO: retry on timeout
-			// return ttl on channel
-			ping(ops)
-			time.Sleep(10 * time.Second) // 1/6 of the keep-alive deadline
-		}
-	}()
-	go func() {
-		for {
-			<-read(ops, acks, res)
-		}
-	}()
+	go ping(ctx, ops, acks)
+	go read(ctx, ops, acks, res)
 	return req, res
 }
 

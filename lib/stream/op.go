@@ -1,10 +1,12 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
@@ -41,24 +43,29 @@ func connect(ops chan op) {
 	}
 }
 
-// ping writes a PINGREQ packet and expects to read
-// a PINGRESP packet in return
-func ping(ops chan op) {
-	ops <- func(rw io.ReadWriter) error {
+// ping writes a PINGREQ packet
+func ping(ctx context.Context, ops chan op, acks *packet.Acks) {
+	defer log.Println("  ping cancelled")
+	fn := func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.PingReq())
 		if err != nil {
 			return err
 		}
-		var b [2]byte
-		_, err = rw.Read(b[:])
-		if err != nil {
-			// TODO: yield and retry if timeout
-			return err
-		}
-		if !packet.Is(b[0], "PINGRESP") {
-			return fmt.Errorf("%x %w", b, ErrBadPacket)
-		}
+		// We must not read expecting PINGRESP here
+		// since we might get another *ACK
+		<-acks.Push(&packet.Ack{
+			TTL:    10,
+			Packet: packet.PingResp(),
+		})
 		return nil
+	}
+	for {
+		select {
+		case ops <- fn:
+		case <-ctx.Done():
+			return
+		}
+		time.Sleep(10 * time.Second) // 1/6 of the keep-alive ttl
 	}
 }
 
@@ -75,14 +82,11 @@ func disconnect(ops chan op) chan bool {
 }
 
 // read reads from rw and writes to res
-func read(ops chan op, acks *packet.Acks, res chan *Response) chan bool {
-	release := make(chan bool)
-	ops <- func(rw io.ReadWriter) error {
-		defer func() {
-			log.Println("DEBUG: read end")
-			release <- true
-		}()
-		log.Println("DEBUG: read start")
+func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Response) {
+	defer log.Println("  read cancelled")
+	fn := func(rw io.ReadWriter) error {
+		defer log.Println("  read end")
+		log.Println("  read start")
 		var b [64]byte
 		n, err := rw.Read(b[:]) // blocking
 		if err != nil {
@@ -101,18 +105,24 @@ func read(ops chan op, acks *packet.Acks, res chan *Response) chan bool {
 		}
 		ack := acks.Pop(b[:n])
 		if ack != nil {
-			log.Printf("DEBUG: %x popped", b[:n])
+			log.Printf("  %x popped", b[:n])
 			if packet.Is(b[0], "SUBACK") {
 				res <- notice("subscription acked")
 			}
 		}
 		return nil
 	}
-	return release
+	for {
+		select {
+		case ops <- fn:
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
-func subscribe(ops chan op, acks *packet.Acks, topic string) {
-	ops <- func(rw io.ReadWriter) error {
+func subscribe(ctx context.Context, ops chan op, acks *packet.Acks, topic string) {
+	fn := func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.Subscribe(topic))
 		if err != nil {
 			return err
@@ -124,16 +134,11 @@ func subscribe(ops chan op, acks *packet.Acks, topic string) {
 			Packet: packet.Suback(),
 		})
 		return nil
-		/*var b [5]byte
-		_, err = rw.Read(b[:])
-		if err != nil {
-			// TODO: yield and retry if timeout
-			return err
-		}
-		if !packet.Is(b[0], "SUBACK") {
-			return fmt.Errorf("%x %w", b, ErrBadPacket)
-		}
-		// TODO: check return code in b[5]
-		return nil*/
+	}
+	select {
+	case ops <- fn:
+	case <-ctx.Done():
+		log.Println("  subscribe cancelled")
+		return
 	}
 }

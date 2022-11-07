@@ -20,36 +20,17 @@ var (
 	ErrConnClosed  = errors.New("connection closed")
 )
 
-// listen exposes a stream as a ReadWriter to funcs on the ops channel
-func listen(ctx context.Context, ops chan op, fatal chan error) {
-	stm, err := new()
-	if err != nil {
-		fatal <- err
-		return
-	}
-	defer log.Println("DEBUG: ops listener closed")
-	for {
-		select {
-		case op := <-ops:
-			err := op(stm)
-			if err != nil {
-				fatal <- err
-			}
-		case <-ctx.Done():
-			return
+// listen exposes an io.ReadWriter to funcs on the ops channel
+func listen(cancel context.CancelFunc, rw io.ReadWriter, ops chan op, fatal chan error) {
+	defer log.Println("  listener closed")
+	stm := &stream{rw: rw}
+	for fn := range ops {
+		err := fn(stm)
+		if err != nil {
+			cancel()
+			fatal <- err
 		}
 	}
-}
-
-// new returns a stream
-func new() (*stream, error) {
-	conn, err := net.Dial("tcp", "localhost:1883")
-	if err != nil {
-		return nil, err
-	}
-	return &stream{
-		rw: conn,
-	}, nil
 }
 
 // Read performs the duties of an io.Reader,
@@ -59,7 +40,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 		if p[0] != 0 {
 			// something was read
 			if v, ok := packet.ControlPacket[p[0]]; ok {
-				log.Printf("%s", v)
+				log.Printf("< %s", v)
 			} else {
 				log.Printf("unknown op %x read", p[0])
 			}
@@ -107,7 +88,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 func (stm *stream) Write(p []byte) (int, error) {
 	op := p[0]
 	if v, ok := packet.ControlPacket[op]; ok {
-		log.Printf("%s", v)
+		log.Printf("> %s", v)
 	} else {
 		log.Printf("unknown op %x written", op)
 	}

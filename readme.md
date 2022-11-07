@@ -1,10 +1,18 @@
 # mqtt-client
 An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718086). Mostly for learning bit operations, not for production use.
 
+# mqtt 3.1.1 feature support
+- [x] connect
+- [x] ping
+- [x] subscribe
+- [x] disconnect
+- [ ] publish
+- [ ] QoS
+
 # design goals
 - Composition over inheritance
 - Simplicity: just packets and a stream
-- Elegance. Yes, you heard me. Idiomatic go is elegant.
+- Idiomatic go
 - Decent test coverage
 
 # notes
@@ -25,14 +33,7 @@ $ make run
 
 # todos
 - [x] use https://github.com/karlpokus/mqtt-parser for monitoring connection
-- [x] connect
-- [x] connack
-- [x] pingreq
-- [x] pingresp
-- [x] disconnect
 - [x] tests
-- [x] sub
-- [ ] pub
 - [x] parse connack return codes
 - [x] verify pingresp after sending pingreq
 - [x] handle conn errors https://github.com/karlpokus/broker/blob/master/pkg/broker/broker.go
@@ -59,3 +60,5 @@ $ make run
 - [ ] *ack should include its name in timeout error
 - [x] not before SUBACK popped should we notify client
 - [ ] maybe add a friendly name for pop feedback?
+- [ ] reconnect option
+- [x] make op funcs cancelable
