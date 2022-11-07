@@ -2,25 +2,30 @@ package main
 
 import (
 	"log"
+	"net"
 
 	"github.com/karlpokus/mqtt-client/lib/stream"
 )
 
 func main() {
+	conn, err := net.Dial("tcp", "localhost:1883")
+	if err != nil {
+		log.Fatal(err)
+	}
 	exit := make(chan bool)
-	req, res := stream.NewClient()
+	req, res := stream.Client(conn)
 	go func() {
 		for r := range res {
 			if r.Notice() {
 				if r.Fatal() {
-					log.Printf("fatal %q", r.Err())
+					log.Printf("u fatal %q", r.Err())
 					exit <- true
 					return
 				}
-				log.Printf("notice %q", r.Message)
+				log.Printf("u notice %q", r.Message)
 				continue
 			}
-			log.Printf("message %q on topic %q", r.Message, r.Topic)
+			log.Printf("u message %q on topic %q", r.Message, r.Topic)
 		}
 	}()
 	req <- stream.Subscribe("test")
