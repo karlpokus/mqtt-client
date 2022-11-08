@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
@@ -19,7 +20,7 @@ type Request struct {
 
 type Response struct {
 	Topic, Message string
-	err            error
+	Err            error
 }
 
 var ErrInterrupt = errors.New("interrupt signal")
@@ -29,11 +30,7 @@ func (r *Response) Notice() bool {
 }
 
 func (r *Response) Fatal() bool {
-	return r.err != nil
-}
-
-func (r *Response) Err() string {
-	return r.err.Error()
+	return r.Err != nil
 }
 
 // user-friendly wrapper
@@ -56,7 +53,7 @@ func notice(m string) *Response {
 func noticeFatal(err error) *Response {
 	return &Response{
 		Topic: "NOTICE",
-		err:   err,
+		Err:   err,
 	}
 }
 
@@ -80,7 +77,8 @@ func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
 		if !errors.Is(err, ErrConnClosed) {
 			<-disconnect(ops)
 		}
-		close(ops) // so this should be safe
+		time.Sleep(1 * time.Second) // graceful shutdown
+		close(ops)                  // so this should be safe
 		res <- noticeFatal(err)
 	}()
 	go listen(cancel, rw, ops, fatal)

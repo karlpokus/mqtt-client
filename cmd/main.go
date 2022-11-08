@@ -18,7 +18,7 @@ func main() {
 		for r := range res {
 			if r.Notice() {
 				if r.Fatal() {
-					log.Printf("u fatal %q", r.Err())
+					log.Printf("u fatal %q", r.Err)
 					exit <- true
 					return
 				}
