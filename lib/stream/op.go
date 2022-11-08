@@ -26,16 +26,17 @@ func connect(ops chan op) {
 		if err != nil {
 			return err
 		}
-		var b [4]byte
-		_, err = rw.Read(b[:])
+		b := make([]byte, 4)
+		_, err = rw.Read(b)
 		if err != nil {
 			// TODO: yield and retry on timeout
 			return err
 		}
-		if !packet.Is(b[0], "CONNACK") {
+		if !packet.Is(b, packet.CONNACK) {
 			return fmt.Errorf("%x %w", b, ErrBadPacket)
 		}
 		// TODO: verify session present flag
+		// TODO: verify n > 3 first
 		if b[3] != 0 {
 			return fmt.Errorf("%s %w", packet.ConnackReturnCodeDesc[b[3]], ErrBadReturnCode)
 		}
@@ -87,15 +88,15 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 	fn := func(rw io.ReadWriter) error {
 		defer log.Println("  read end")
 		log.Println("  read start")
-		var b [64]byte
-		n, err := rw.Read(b[:]) // blocking
+		b := make([]byte, 64)
+		n, err := rw.Read(b)
 		if err != nil {
 			if errors.Is(err, ErrReadTimeout) {
 				return nil
 			}
 			return err
 		}
-		if packet.Is(b[0], "PUBLISH") {
+		if packet.Is(b, packet.PUBLISH) {
 			t, m := packet.ParsePublish(b[:n])
 			res <- &Response{
 				Topic:   t,
@@ -106,7 +107,7 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 		ack := acks.Pop(b[:n])
 		if ack != nil {
 			log.Printf("  %x popped", b[:n])
-			if packet.Is(b[0], "SUBACK") {
+			if packet.Is(b, packet.SUBACK) {
 				res <- notice("subscription acked")
 			}
 		}

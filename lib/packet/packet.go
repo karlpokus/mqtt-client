@@ -2,15 +2,26 @@ package packet
 
 import "bytes"
 
-var ControlPacket = map[uint8]string{
-	0x10: "CONNECT",
-	0x20: "CONNACK",
-	0xc0: "PINGREQ",
-	0xd0: "PINGRESP",
-	0xe0: "DISCONNECT",
-	0x82: "SUBSCRIBE",
-	0x90: "SUBACK",
-	0x30: "PUBLISH",
+const (
+	CONNECT    = "CONNECT"
+	CONNACK    = "CONNACK"
+	PINGREQ    = "PINGREQ"
+	PINGRESP   = "PINGRESP"
+	DISCONNECT = "DISCONNECT"
+	SUBSCRIBE  = "SUBSCRIBE"
+	SUBACK     = "SUBACK"
+	PUBLISH    = "PUBLISH"
+)
+
+var Packet = map[uint8]string{
+	0x10: CONNECT,
+	0x20: CONNACK,
+	0xc0: PINGREQ,
+	0xd0: PINGRESP,
+	0xe0: DISCONNECT,
+	0x82: SUBSCRIBE,
+	0x90: SUBACK,
+	0x30: PUBLISH,
 }
 
 var ConnackReturnCodeDesc = []string{
@@ -22,9 +33,9 @@ var ConnackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
-// Is returns true if key b matches value s in ControlPacket
-func Is(b uint8, s string) bool {
-	if v, ok := ControlPacket[b]; ok && v == s {
+// Is returns true if the key matches the value in Packet
+func Is(b []byte, s string) bool {
+	if v, ok := Packet[b[0]]; ok && v == s {
 		return true
 	}
 	return false

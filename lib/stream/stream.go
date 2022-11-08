@@ -39,7 +39,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 	defer func() {
 		if p[0] != 0 {
 			// something was read
-			if v, ok := packet.ControlPacket[p[0]]; ok {
+			if v, ok := packet.Packet[p[0]]; ok {
 				log.Printf("< %s", v)
 			} else {
 				log.Printf("unknown op %x read", p[0])
@@ -87,7 +87,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 // logs the op code of the written packet
 func (stm *stream) Write(p []byte) (int, error) {
 	op := p[0]
-	if v, ok := packet.ControlPacket[op]; ok {
+	if v, ok := packet.Packet[op]; ok {
 		log.Printf("> %s", v)
 	} else {
 		log.Printf("unknown op %x written", op)
