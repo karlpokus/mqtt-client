@@ -71,14 +71,18 @@ func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
 		case err = <-fatal:
 		case <-interrupt():
 			err = ErrInterrupt
-			cancel()
 		}
-		// At this point cancel has been run
+		// we have 3 ways of ending up here:
+		// 1 rw error (cancel has already been run)
+		// 2 expired acks (push to fatal)
+		// 3 interrupt
+		// but it's ok to call cancel multiple times
+		cancel()
 		if !errors.Is(err, ErrConnClosed) {
 			<-disconnect(ops)
 		}
 		time.Sleep(1 * time.Second) // graceful shutdown
-		close(ops)                  // so this should be safe
+		close(ops)
 		res <- noticeFatal(err)
 	}()
 	go listen(cancel, rw, ops, fatal)

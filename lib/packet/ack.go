@@ -11,6 +11,7 @@ import (
 type Ack struct {
 	TTL    int
 	Packet []byte
+	Name   string
 	cancel chan bool
 }
 
@@ -19,25 +20,26 @@ type Acks struct {
 	errc chan error
 }
 
-var ErrAckExpired = errors.New("ack ttl expired")
+var ErrAckExpired = errors.New("ttl expired")
 
 func NewAcks(errc chan error) *Acks {
 	return &Acks{errc: errc}
 }
 
 func (acks *Acks) Push(ack *Ack) <-chan bool {
+	ack.Name = Packet[ack.Packet[0]]
 	release := make(chan bool)
 	cancel := make(chan bool)
 	go func() {
 		var stopped bool
 		defer func() {
-			log.Printf("  %s ack exiting. Timer stopped %t", hex(ack.Packet), stopped)
+			log.Printf("  %s timer exiting. Timer stopped %t", ack.Name, stopped)
 		}()
 		t := time.NewTimer(time.Duration(ack.TTL) * time.Second)
 		release <- true
 		select {
 		case <-t.C:
-			acks.errc <- fmt.Errorf("%s %w", hex(ack.Packet), ErrAckExpired)
+			acks.errc <- fmt.Errorf("%s %w", ack.Name, ErrAckExpired)
 			return
 		case <-cancel:
 			stopped = t.Stop()
