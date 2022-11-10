@@ -29,7 +29,10 @@ func (acks *Acks) Push(ack *Ack) <-chan bool {
 	release := make(chan bool)
 	cancel := make(chan bool)
 	go func() {
-		defer log.Printf("DEBUG: %s goroutine exiting", hex(ack.Packet))
+		var stopped bool
+		defer func() {
+			log.Printf("  %s ack exiting. Timer stopped %t", hex(ack.Packet), stopped)
+		}()
 		t := time.NewTimer(time.Duration(ack.TTL) * time.Second)
 		release <- true
 		select {
@@ -37,8 +40,7 @@ func (acks *Acks) Push(ack *Ack) <-chan bool {
 			acks.errc <- fmt.Errorf("%s %w", hex(ack.Packet), ErrAckExpired)
 			return
 		case <-cancel:
-			stopped := t.Stop()
-			log.Printf("DEBUG: %s timer stopped %t", hex(ack.Packet), stopped)
+			stopped = t.Stop()
 		}
 	}()
 	ack.cancel = cancel

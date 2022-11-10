@@ -40,30 +40,3 @@ func TestConnectFail(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
-
-func TestPingOk(t *testing.T) {
-	buf := bytes.NewBuffer(packet.PingResp())
-	ops := make(chan op)
-	go ping(ops)
-	op := <-ops
-	err := op(buf)
-	if err != nil {
-		t.Fatalf("pingresp error: %s", err)
-	}
-	b := buf.Bytes()
-	if !bytes.Equal(b, packet.PingReq()) {
-		t.Fatalf("pingreq error: %x", b)
-	}
-}
-
-func TestPingFail(t *testing.T) {
-	notPingresp := []byte{0xe0, 0}
-	buf := bytes.NewBuffer(notPingresp)
-	ops := make(chan op)
-	go ping(ops)
-	op := <-ops
-	err := op(buf)
-	if !errors.Is(err, ErrBadPacket) {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}

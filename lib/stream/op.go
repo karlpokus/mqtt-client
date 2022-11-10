@@ -96,6 +96,9 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 			}
 			return err
 		}
+		if n == 0 {
+			return nil
+		}
 		if packet.Is(b, packet.PUBLISH) {
 			t, m := packet.ParsePublish(b[:n])
 			res <- &Response{
