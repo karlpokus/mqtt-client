@@ -84,10 +84,10 @@ func disconnect(ops chan op) chan bool {
 
 // read reads from rw and writes to res
 func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Response) {
-	defer log.Println("  read cancelled")
+	defer log.Println("r cancelled")
 	fn := func(rw io.ReadWriter) error {
-		defer log.Println("  read end")
-		log.Println("  read start")
+		defer log.Println("r end")
+		log.Println("r start")
 		b := make([]byte, 64)
 		n, err := rw.Read(b)
 		if err != nil {
@@ -109,7 +109,7 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 		}
 		ack := acks.Pop(b[:n])
 		if ack != nil {
-			log.Printf("  %x popped", b[:n])
+			log.Printf("r popped % x", b[:n])
 			if packet.Is(b, packet.SUBACK) {
 				res <- notice("subscription acked")
 			}
@@ -127,7 +127,8 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 
 func subscribe(ctx context.Context, ops chan op, acks *packet.Acks, topic string) {
 	fn := func(rw io.ReadWriter) error {
-		_, err := rw.Write(packet.Subscribe(topic))
+		id := packet.Id()
+		_, err := rw.Write(packet.Subscribe(topic, id))
 		if err != nil {
 			return err
 		}
@@ -135,7 +136,7 @@ func subscribe(ctx context.Context, ops chan op, acks *packet.Acks, topic string
 		// since we might get PUBLISH first
 		<-acks.Push(&packet.Ack{
 			TTL:    30,
-			Packet: packet.Suback(),
+			Packet: packet.Suback(id),
 		})
 		return nil
 	}

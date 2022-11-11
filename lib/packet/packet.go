@@ -1,6 +1,11 @@
 package packet
 
-import "bytes"
+import (
+	"bytes"
+	"encoding/binary"
+	"math/rand"
+	"time"
+)
 
 const (
 	CONNECT    = "CONNECT"
@@ -13,6 +18,7 @@ const (
 	PUBLISH    = "PUBLISH"
 )
 
+// TODO: convert Packet to func(b)
 var Packet = map[uint8]string{
 	0x10: CONNECT,
 	0x20: CONNACK,
@@ -42,6 +48,7 @@ func Is(b []byte, s string) bool {
 }
 
 // connect returns a CONNECT packet
+// TODO: use bytes.Buffer
 func Connect(clientId string) []byte {
 	fixedHeaderLen := 2
 	varHeaderLen := 10
@@ -98,17 +105,15 @@ func PingResp() []byte {
 // fixed var   payload
 // 82 09 00 01 00 04 74 65    73 74 00
 // .  .  .  .  .  .  t  e     s  t  .
-func Subscribe(topic string) []byte {
+func Subscribe(topic string, id uint16) []byte {
 	var buf bytes.Buffer
 	// fixed header - 2 bytes
 	buf.WriteByte(0x82)
 	buf.WriteByte(uint8(2 + 2 + len(topic) + 1))
 	// var header - 2 bytes
-	buf.WriteByte(0) // packet id MSB
-	buf.WriteByte(1) // packet id LSB TODO: need to bump for future subscriptions?
-	// payload
-	buf.WriteByte(0)                 // len MSB
-	buf.WriteByte(uint8(len(topic))) // len LSB
+	buf.Write(spread16(id)) // packet id MSB, LSB
+	// payload - 2 bytes + topic string + QoS per topic
+	buf.Write(spread16(uint16(len(topic)))) // payload length MSB + LSB
 	buf.Write([]byte(topic))
 	buf.WriteByte(0) // QoS per topic
 	return buf.Bytes()
@@ -118,14 +123,13 @@ func Subscribe(topic string) []byte {
 // 90 03 00 01 00
 // TODO: compare packet id
 // note: we might get PUBLISH before SUBACK
-func Suback() []byte {
+func Suback(id uint16) []byte {
 	var buf bytes.Buffer
 	// fixed header - 2 bytes
 	buf.WriteByte(0x90)
 	buf.WriteByte(3) // remaining len
 	// var header - 2 bytes
-	buf.WriteByte(0) // packet id MSB
-	buf.WriteByte(1) // packet id LSB
+	buf.Write(spread16(id)) // packet id MSB, LSB
 	// payload - 1 byte
 	// Allowed return codes:
 	// 0x00 - Success - Maximum QoS 0
@@ -155,4 +159,28 @@ func ParsePublish(b []byte) (string, string) {
 	topic := string(b[topicStart:topicEnd])
 	message := string(b[topicEnd:len(b)])
 	return topic, message
+}
+
+// ParseSubscribe returns the packet id from b
+func ParseSubscribe(b []byte) uint16 {
+	return unspread16(b[2 : 2+2])
+}
+
+// Id generates a random id > 0 < 0xffff
+func Id() uint16 {
+	rand.Seed(time.Now().UnixNano())
+	return uint16(rand.Intn(0xffff))
+}
+
+// spread16 spreads an uint16 over 2 bytes
+func spread16(i uint16) []byte {
+	// []byte{byte(i >> 8), byte(i & 0xff)}
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, i)
+	return b
+}
+
+// unspread16 merges 2 bytes into an uint16
+func unspread16(b []byte) uint16 {
+	return binary.BigEndian.Uint16(b)
 }

@@ -64,3 +64,4 @@ $ make run
 - [ ] reconnect option
 - [x] make op funcs cancelable
 - [ ] slow reader to test read timeout
+- [x] generate packet id
