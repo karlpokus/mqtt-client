@@ -46,7 +46,7 @@ func connect(ops chan op) {
 
 // ping writes a PINGREQ packet
 func ping(ctx context.Context, ops chan op, acks *packet.Acks) {
-	defer log.Println("  ping cancelled")
+	defer log.Println("  next ping cancelled")
 	fn := func(rw io.ReadWriter) error {
 		_, err := rw.Write(packet.PingReq())
 		if err != nil {
@@ -84,7 +84,7 @@ func disconnect(ops chan op) chan bool {
 
 // read reads from rw and writes to res
 func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Response) {
-	defer log.Println("r cancelled")
+	defer log.Println("r next read cancelled")
 	fn := func(rw io.ReadWriter) error {
 		defer log.Println("r end")
 		log.Println("r start")
@@ -143,7 +143,21 @@ func subscribe(ctx context.Context, ops chan op, acks *packet.Acks, topic string
 	select {
 	case ops <- fn:
 	case <-ctx.Done():
-		log.Println("  subscribe cancelled")
+		log.Println("  next subscribe cancelled")
+		return
+	}
+}
+
+func publish(ctx context.Context, ops chan op, topic string, payload []byte) {
+	fn := func(rw io.ReadWriter) error {
+		_, err := rw.Write(packet.Publish(topic, payload))
+		// Since we're only using QoS 0 we don't get PUB* ack back
+		return err
+	}
+	select {
+	case ops <- fn:
+	case <-ctx.Done():
+		log.Println("  next publish cancelled")
 		return
 	}
 }

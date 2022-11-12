@@ -93,11 +93,7 @@ func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
 				subscribe(ctx, ops, acks, r.topic)
 				continue
 			}
-			/* pub echo
-			res <- &Response{
-				topic:   "test",
-				message: string(r.payload),
-			}*/
+			publish(ctx, ops, r.topic, r.payload)
 		}
 	}()
 	go ping(ctx, ops, acks)

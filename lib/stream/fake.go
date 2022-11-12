@@ -10,8 +10,9 @@ type fakeStream struct {
 }
 
 type fakeAck struct {
-	name string
-	id   uint16
+	name    string
+	id      uint16
+	payload []byte
 }
 
 // push pushes the ack to the list
@@ -39,11 +40,13 @@ func (fake *fakeStream) Read(p []byte) (int, error) {
 		return copy(p, packet.PingResp()), nil
 	case packet.SUBACK:
 		return copy(p, packet.Suback(ack.id)), nil
+	case packet.PUBLISH:
+		return copy(p, ack.payload), nil
 	default:
 		fake.reads++
 		// allow a few empty reads
 		// since we don't know the order of reads and writes
-		if fake.reads > 3 {
+		if fake.reads > 10 {
 			return 0, ErrConnClosed
 		}
 		return 0, nil
@@ -55,17 +58,18 @@ func (fake *fakeStream) Write(p []byte) (int, error) {
 	switch packet.Packet[p[0]] {
 	case packet.CONNECT:
 		fake.push(fakeAck{name: packet.CONNACK})
-		return len(p), nil
 	case packet.PINGREQ:
 		fake.push(fakeAck{name: packet.PINGRESP})
-		return len(p), nil
 	case packet.SUBSCRIBE:
 		fake.push(fakeAck{
 			name: packet.SUBACK,
 			id:   packet.ParseSubscribe(p),
 		})
-		return len(p), nil
-	default:
-		return 0, ErrConnClosed
+	case packet.PUBLISH:
+		fake.push(fakeAck{
+			name:    packet.PUBLISH, // not an ack per se
+			payload: p,
+		})
 	}
+	return len(p), nil
 }

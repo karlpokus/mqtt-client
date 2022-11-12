@@ -18,7 +18,6 @@ const (
 	PUBLISH    = "PUBLISH"
 )
 
-// TODO: convert Packet to func(b)
 var Packet = map[uint8]string{
 	0x10: CONNECT,
 	0x20: CONNACK,
@@ -121,8 +120,6 @@ func Subscribe(topic string, id uint16) []byte {
 
 // fixed var   payload
 // 90 03 00 01 00
-// TODO: compare packet id
-// note: we might get PUBLISH before SUBACK
 func Suback(id uint16) []byte {
 	var buf bytes.Buffer
 	// fixed header - 2 bytes
@@ -137,6 +134,38 @@ func Suback(id uint16) []byte {
 	// 0x02 - Success - Maximum QoS 2
 	// 0x80 - Failure
 	buf.WriteByte(0)
+	return buf.Bytes()
+}
+
+/*
+PUBLISH
+
+fixed header: 2 bytes
+
+	controlpacket + flags: dup, QoS, retain
+	remaining length
+
+variable header: 2 + topic string
+
+	  topic length
+		topic string
+		(packed id only included in QoS > 0)
+
+payload: n bytes
+
+response:
+
+	QoS 0: None
+	QoS 1: PUBACK
+	QoS 2: PUBREC
+*/
+func Publish(topic string, payload []byte) []byte {
+	var buf bytes.Buffer
+	buf.WriteByte(0x30)
+	buf.WriteByte(uint8(2 + len(topic) + len(payload)))
+	buf.Write(spread16(uint16(len(topic))))
+	buf.Write([]byte(topic))
+	buf.Write(payload)
 	return buf.Bytes()
 }
 

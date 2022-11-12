@@ -27,6 +27,9 @@ func listen(cancel context.CancelFunc, rw io.ReadWriter, ops chan op, fatal chan
 	for fn := range ops {
 		err := fn(stm)
 		if err != nil {
+			// note: if we move DISCONNECT here
+			// we can return and have a single cancel call
+			// after reading from fatal
 			cancel()
 			fatal <- err
 		}

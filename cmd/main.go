@@ -29,6 +29,6 @@ func main() {
 		}
 	}()
 	req <- stream.Subscribe("test")
-	//req <- stream.Publish("test", []byte("hello world"))
+	req <- stream.Publish("test", []byte("hello w0rld"))
 	<-exit
 }

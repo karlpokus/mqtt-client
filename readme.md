@@ -6,7 +6,7 @@ An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mq
 - [x] ping
 - [x] subscribe
 - [x] disconnect
-- [ ] publish
+- [x] publish
 - [ ] QoS
 - [ ] session
 
@@ -65,3 +65,5 @@ $ make run
 - [x] make op funcs cancelable
 - [ ] slow reader to test read timeout
 - [x] generate packet id
+- [ ] client initiated disconnect
+- [ ] convert packet.Packet to func(b)
