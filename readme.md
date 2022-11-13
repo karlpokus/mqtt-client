@@ -63,7 +63,6 @@ $ make run
 - [x] ack name
 - [ ] reconnect option
 - [x] make op funcs cancelable
-- [ ] slow reader to test read timeout
 - [x] generate packet id
 - [ ] client initiated disconnect
 - [ ] convert packet.Packet to func(b)

@@ -70,20 +70,7 @@ func (stm *stream) Read(p []byte) (int, error) {
 		return n, err
 	}
 	// io.ReadWriter
-	pass := make(chan bool)
-	t := time.NewTimer(time.Duration(ttl) * time.Second)
-	// note: this will leak on timeout
-	go func() {
-		n, err = stm.rw.Read(p)
-		pass <- true
-	}()
-	select {
-	case <-t.C:
-		err = ErrReadTimeout
-	case <-pass:
-		t.Stop()
-	}
-	return n, err
+	return stm.rw.Read(p)
 }
 
 // Write performs the duties of an io.Writer and
