@@ -56,9 +56,9 @@ $ make run
 - [x] pass error in Response
 - [x] ack pending queue
 - [ ] maybe rename type op to tx
-- [ ] good comments on packet bytes
+- [x] good comments on packet bytes
 - [x] expose Response.Message and Topic
-- [ ] *ack should include its name in timeout error
+- [x] *ack name in timeout error
 - [x] not before SUBACK popped should we notify client
 - [x] ack name
 - [ ] reconnect option

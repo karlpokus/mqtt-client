@@ -46,39 +46,46 @@ func Is(b []byte, s string) bool {
 	return false
 }
 
-// connect returns a CONNECT packet
-// TODO: use bytes.Buffer
+/*
+CONNECT
+
+fixed header: 2 bytes
+
+	1 controlpacket + reserved
+	1 remaining length
+
+variable header: 10 bytes
+
+	2 protocol name length
+	4 protocol name string
+	1 protocol version
+	1 connect flags
+	2 keep-alive
+
+payload: 2 bytes + payload string
+
+	2 payload length
+	n payload string
+*/
 func Connect(clientId string) []byte {
-	fixedHeaderLen := 2
-	varHeaderLen := 10
-	payloadLen := 2 + len(clientId)
-	totalLength := fixedHeaderLen + varHeaderLen + payloadLen
-	// subtract clientId from totalLength so we may easily append it at the end
-	b := make([]byte, totalLength-len(clientId))
-	// fixed header: control packet type and reserved bits
-	b[0] = 0x10
-	// fixed header: remaining length (TODO: read 2.2.3 for proper implementation)
-	b[1] = uint8(varHeaderLen + payloadLen)
-	// variable header:
-	b[2] = 0
-	b[3] = 4
-	b[4] = 0x4d // M
-	b[5] = 0x51 // Q
-	b[6] = 0x54 // T
-	b[7] = 0x54 // T
-	// variable header: proto version
-	b[8] = 4
-	// variable header: connect flags (set to clean session)
-	b[9] = 2
-	// variable header: keep-alive
-	b[10] = 0
-	b[11] = 60 // 0x3c is 60s
-	// payload: length
-	b[12] = 0
-	b[13] = uint8(len(clientId))
-	// payload: clientId
-	b = append(b, []byte(clientId)...)
-	return b
+	var buf bytes.Buffer
+	protoName := "MQTT"
+	protoVersion := 4 // 3.1.1
+	connectFlags := 2 // clean session
+	keepAlive := 60   // seconds
+	// fixed header
+	buf.WriteByte(0x10)
+	buf.WriteByte(uint8(10 + 2 + len(clientId)))
+	// variable header
+	buf.Write(spread16(uint16(len(protoName))))
+	buf.Write([]byte(protoName))
+	buf.WriteByte(uint8(protoVersion))
+	buf.WriteByte(uint8(connectFlags))
+	buf.Write(spread16(uint16(keepAlive)))
+	// payload
+	buf.Write(spread16(uint16(len(clientId))))
+	buf.Write([]byte(clientId))
+	return buf.Bytes()
 }
 
 // Connack returns a CONNACK packet
@@ -101,38 +108,69 @@ func PingResp() []byte {
 	return []byte{0xd0, 0}
 }
 
-// fixed var   payload
-// 82 09 00 01 00 04 74 65    73 74 00
-// .  .  .  .  .  .  t  e     s  t  .
+/*
+SUBSCRIBE
+
+fixed header: 2 bytes
+
+	1 controlpacket + reserved
+	1 remaining length
+
+variable header: 2 bytes
+
+	2 packet id
+
+payload: 2 + topic + QoS per topic
+
+	2 payload length
+	n payload string
+	1 QoS
+*/
 func Subscribe(topic string, id uint16) []byte {
 	var buf bytes.Buffer
-	// fixed header - 2 bytes
+	// fixed header
 	buf.WriteByte(0x82)
 	buf.WriteByte(uint8(2 + 2 + len(topic) + 1))
-	// var header - 2 bytes
-	buf.Write(spread16(id)) // packet id MSB, LSB
-	// payload - 2 bytes + topic string + QoS per topic
-	buf.Write(spread16(uint16(len(topic)))) // payload length MSB + LSB
+	// variable header
+	buf.Write(spread16(id))
+	// payload
+	buf.Write(spread16(uint16(len(topic))))
 	buf.Write([]byte(topic))
-	buf.WriteByte(0) // QoS per topic
+	buf.WriteByte(0)
 	return buf.Bytes()
 }
 
-// fixed var   payload
-// 90 03 00 01 00
+/*
+SUBACK
+
+fixed header: 2 bytes
+
+	1 controlpacket
+	1 remaining length
+
+variable header: 2 bytes
+
+	2 packet id
+
+payload: 1 byte
+
+	1 return code
+
+Allowed return codes:
+
+	0x00 - Success - Maximum QoS 0
+	0x01 - Success - Maximum QoS 1
+	0x02 - Success - Maximum QoS 2
+	0x80 - Failure
+*/
 func Suback(id uint16) []byte {
 	var buf bytes.Buffer
-	// fixed header - 2 bytes
+	// fixed header
 	buf.WriteByte(0x90)
-	buf.WriteByte(3) // remaining len
-	// var header - 2 bytes
-	buf.Write(spread16(id)) // packet id MSB, LSB
-	// payload - 1 byte
-	// Allowed return codes:
-	// 0x00 - Success - Maximum QoS 0
-	// 0x01 - Success - Maximum QoS 1
-	// 0x02 - Success - Maximum QoS 2
-	// 0x80 - Failure
+	buf.WriteByte(3)
+	// var header
+	buf.Write(spread16(id))
+	// payload
 	buf.WriteByte(0)
 	return buf.Bytes()
 }
@@ -169,19 +207,10 @@ func Publish(topic string, payload []byte) []byte {
 	return buf.Bytes()
 }
 
-// pub: svammel
-// fixed var               payload
-// 30 0d 00 04 74 65 73 74 73 76 61 6d 6d 65 6c
-//
-//	t  e  s  t  s  v  a  m  m  e  l
-//
-// TODO: check DUP
-// TODO: check packet id
 // ParsePublish returns topic and message from b
 func ParsePublish(b []byte) (string, string) {
-	// fixed header: 2 bytes
-	// var header: 2 + len(topic) bytes
-	// no packet id?
+	// TODO: check DUP
+	// TODO: check packet id if QoS > 0
 	topicStart := 4
 	topicLen := int(b[3])
 	topicEnd := topicStart + topicLen
@@ -192,7 +221,7 @@ func ParsePublish(b []byte) (string, string) {
 
 // ParseSubscribe returns the packet id from b
 func ParseSubscribe(b []byte) uint16 {
-	return unspread16(b[2 : 2+2])
+	return unspread16(b[2:4])
 }
 
 // Id generates a random id > 0 < 0xffff
