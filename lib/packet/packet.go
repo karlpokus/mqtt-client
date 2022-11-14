@@ -18,7 +18,7 @@ const (
 	PUBLISH    = "PUBLISH"
 )
 
-var Packet = map[uint8]string{
+var controlCode = map[uint8]string{
 	0x10: CONNECT,
 	0x20: CONNACK,
 	0xc0: PINGREQ,
@@ -38,12 +38,20 @@ var ConnackReturnCodeDesc = []string{
 	"The Client is not authorized to connect",
 }
 
+// Packet returns the controlpacket of b formatted as a string
+func Packet(b []byte) string {
+	if len(b) == 0 {
+		return "UNKNOWN"
+	}
+	if v, ok := controlCode[b[0]]; ok {
+		return v
+	}
+	return "UNKNOWN"
+}
+
 // Is returns true if the key matches the value in Packet
 func Is(b []byte, s string) bool {
-	if v, ok := Packet[b[0]]; ok && v == s {
-		return true
-	}
-	return false
+	return Packet(b) == s
 }
 
 /*

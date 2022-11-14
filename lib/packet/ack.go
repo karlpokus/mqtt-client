@@ -27,9 +27,7 @@ func NewAcks(errc chan error) *Acks {
 }
 
 func (acks *Acks) Push(ack *Ack) <-chan bool {
-	if len(ack.Packet) > 0 {
-		ack.Name = Packet[ack.Packet[0]]
-	}
+	ack.Name = Packet(ack.Packet)
 	release := make(chan bool)
 	cancel := make(chan bool)
 	go func() {

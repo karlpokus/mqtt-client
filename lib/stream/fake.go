@@ -55,7 +55,7 @@ func (fake *fakeStream) Read(p []byte) (int, error) {
 
 // Write appends acks to the list based on p
 func (fake *fakeStream) Write(p []byte) (int, error) {
-	switch packet.Packet[p[0]] {
+	switch packet.Packet(p) {
 	case packet.CONNECT:
 		fake.push(fakeAck{name: packet.CONNACK})
 	case packet.PINGREQ:

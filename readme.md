@@ -65,4 +65,4 @@ $ make run
 - [x] make op funcs cancelable
 - [x] generate packet id
 - [x] client initiated disconnect
-- [ ] convert packet.Packet to func(b)
+- [x] convert packet.Packet to func(b)
