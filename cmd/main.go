@@ -18,17 +18,18 @@ func main() {
 		for r := range res {
 			if r.Notice() {
 				if r.Fatal() {
-					log.Printf("u fatal %q", r.Err)
+					log.Printf("u %s", r.Err)
 					exit <- true
 					return
 				}
-				log.Printf("u notice %q", r.Message)
+				log.Printf("u %s", r.Message)
 				continue
 			}
-			log.Printf("u message %q on topic %q", r.Message, r.Topic)
+			log.Printf("u %s on topic %s", r.Message, r.Topic)
 		}
 	}()
 	req <- stream.Subscribe("test")
 	req <- stream.Publish("test", []byte("hello w0rld"))
+	//req <- stream.Disconnect()
 	<-exit
 }

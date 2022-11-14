@@ -55,7 +55,7 @@ func ping(ctx context.Context, ops chan op, acks *packet.Acks) {
 		// We must not read expecting PINGRESP here
 		// since we might get another *ACK
 		<-acks.Push(&packet.Ack{
-			TTL:    10,
+			TTL:    20,
 			Packet: packet.PingResp(),
 		})
 		return nil
@@ -109,7 +109,7 @@ func read(ctx context.Context, ops chan op, acks *packet.Acks, res chan *Respons
 		}
 		ack := acks.Pop(b[:n])
 		if ack != nil {
-			log.Printf("r popped % x", b[:n])
+			//log.Printf("r popped % x", b[:n])
 			if packet.Is(b, packet.SUBACK) {
 				res <- notice("subscription acked")
 			}

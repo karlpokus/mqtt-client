@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -11,51 +12,7 @@ import (
 	"github.com/karlpokus/mqtt-client/lib/packet"
 )
 
-// Request is a subscription if payload is nil
-// otherwise a publication
-type Request struct {
-	topic   string
-	payload []byte
-}
-
-type Response struct {
-	Topic, Message string
-	Err            error
-}
-
 var ErrInterrupt = errors.New("interrupt signal")
-
-func (r *Response) Notice() bool {
-	return r.Topic == "NOTICE"
-}
-
-func (r *Response) Fatal() bool {
-	return r.Err != nil
-}
-
-// user-friendly wrapper
-func Subscribe(topic string) *Request {
-	return &Request{topic: topic}
-}
-
-// user-friendly wrapper
-func Publish(topic string, payload []byte) *Request {
-	return &Request{topic, payload}
-}
-
-func notice(m string) *Response {
-	return &Response{
-		Topic:   "NOTICE",
-		Message: m,
-	}
-}
-
-func noticeFatal(err error) *Response {
-	return &Response{
-		Topic: "NOTICE",
-		Err:   err,
-	}
-}
 
 func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
 	// note: wrap everything below in a parent goroutine to return asap
@@ -89,20 +46,19 @@ func Client(rw io.ReadWriter) (chan<- *Request, <-chan *Response) {
 	connect(ops)
 	go func() {
 		for r := range req {
-			if isSub(r) {
+			switch r.kind {
+			case "subscribe":
 				subscribe(ctx, ops, acks, r.topic)
-				continue
+			case "publish":
+				publish(ctx, ops, r.topic, r.payload)
+			case "disconnect":
+				fatal <- fmt.Errorf("client initiated disconnect")
 			}
-			publish(ctx, ops, r.topic, r.payload)
 		}
 	}()
 	go ping(ctx, ops, acks)
 	go read(ctx, ops, acks, res)
 	return req, res
-}
-
-func isSub(r *Request) bool {
-	return r.payload == nil
 }
 
 func interrupt() <-chan os.Signal {

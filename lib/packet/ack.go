@@ -33,10 +33,6 @@ func (acks *Acks) Push(ack *Ack) <-chan bool {
 	release := make(chan bool)
 	cancel := make(chan bool)
 	go func() {
-		var stopped bool
-		defer func() {
-			log.Printf("  %s timer exiting. Timer stopped %t", ack.Name, stopped)
-		}()
 		t := time.NewTimer(time.Duration(ack.TTL) * time.Second)
 		release <- true
 		select {
@@ -44,7 +40,8 @@ func (acks *Acks) Push(ack *Ack) <-chan bool {
 			acks.errc <- fmt.Errorf("%s %w", ack.Name, ErrAckExpired)
 			return
 		case <-cancel:
-			stopped = t.Stop()
+			t.Stop() // ignore returned bool
+			log.Printf("a %s % x timer cancelled", ack.Name, ack.Packet)
 		}
 	}()
 	ack.cancel = cancel
