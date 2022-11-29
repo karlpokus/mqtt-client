@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/karlpokus/mqtt-client)](https://goreportcard.com/report/karlpokus/mqtt-client) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # mqtt-client
 An mqtt client in go supporting [mqtt v3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718086). Mostly for learning bit operations, not for production use.
 
